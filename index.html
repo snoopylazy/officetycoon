@@ -1,0 +1,2028 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Office Tycoon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* One-screen ops console: 3D office diorama left, status panel right; stacks on phones. */
+:root { color-scheme: dark; box-sizing: border-box; }
+html, body { height: 100%; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 12px 0;
+  font: 14px/1.45 "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  background: #0b1118; color: #e7eef7;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+img { max-width: 100%; }
+:root {
+  --bg:#0b1118; --panel:#111a24; --panel-2:#172331; --line:#243449;
+  --fg:#e7eef7; --muted:#8b9cb3; --accent:#7fa6ff; --ok:#3ddc97;
+  --meet:#4cc9f0; --brk:#ffb84d; --away:#8793a8; --off:#5d6a7e; --danger:#ff7a7a;
+  --font-display:"Chakra Petch","Segoe UI",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden]:not([hidden=until-found i]) { display:none !important; }
+
+.app { display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:12px; height:100%; min-height:0; }
+
+/* Stage */
+.stage { position:relative; min-width:0; min-height:0; overflow:hidden; border:1px solid var(--line); border-radius:10px; background:radial-gradient(120% 90% at 50% 20%, #142131 0%, var(--bg) 70%); }
+#gl { position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+#gl:active { cursor:grabbing; }
+.overlay { position:absolute; left:12px; right:12px; display:flex; gap:10px; align-items:center; justify-content:space-between; pointer-events:none; flex-wrap:wrap; }
+.overlay.top { top:12px; } .overlay.bottom { bottom:12px; align-items:flex-end; }
+.overlay > * { pointer-events:auto; }
+.brand { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.brand b { font-family:var(--font-display); font-size:20px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+.brand svg { width:24px; height:24px; }
+.sub { font-family:var(--font-mono); font-size:11px; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; }
+.pill { font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; padding:2px 8px; border:1px solid var(--line); border-radius:99px; color:var(--muted); background:rgba(11,17,24,.7); }
+.pill.on { color:var(--accent); border-color:var(--accent); }
+.clock { font-family:var(--font-mono); font-size:13px; background:rgba(11,17,24,.7); border:1px solid var(--line); padding:3px 10px; border-radius:6px; font-variant-numeric:tabular-nums; }
+.controls { display:flex; gap:6px; flex-wrap:wrap; }
+.btn { background:rgba(17,26,36,.88); border:1px solid var(--line); border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
+.btn:hover { border-color:var(--accent); }
+.btn.pri { background:var(--accent); border-color:var(--accent); color:#0b1118; font-weight:600; }
+.btn.pri:hover { filter:brightness(1.08); }
+.btn.danger { color:var(--danger); } .btn.danger:hover { border-color:var(--danger); }
+.btn:disabled { opacity:.5; cursor:default; }
+.btn[aria-pressed=true] { border-color:var(--accent); color:var(--accent); }
+.hint { font-family:var(--font-mono); font-size:10.5px; color:var(--muted); letter-spacing:.04em; background:rgba(11,17,24,.7); padding:4px 8px; border-radius:6px; }
+#labels { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+.tag { position:absolute; left:0; top:0; display:flex; align-items:center; gap:5px; white-space:nowrap; font-size:11px; font-weight:500; padding:2px 7px 2px 5px; border-radius:99px; background:rgba(11,17,24,.82); border:1px solid var(--line); will-change:transform; }
+.tag i { width:7px; height:7px; border-radius:50%; background:var(--away); display:block; }
+.tag.sel { border-color:var(--accent); background:#1c2c46; } .tag.off { opacity:.55; }
+.zone { position:absolute; left:0; top:0; font-family:var(--font-mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:#6f86a6; white-space:nowrap; will-change:transform; }
+.fail { position:absolute; inset:0; display:grid; place-items:center; padding:24px; text-align:center; color:var(--muted); }
+.empty { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:min(340px,calc(100% - 32px)); text-align:center; background:rgba(17,26,36,.92); border:1px solid var(--line); border-radius:10px; padding:16px; }
+.empty b { display:block; font-family:var(--font-display); font-size:18px; margin-bottom:4px; }
+.empty span { color:var(--muted); font-size:13px; display:block; margin-bottom:10px; }
+
+/* Floor tabs */
+.floors { position:absolute; left:10px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:6px; z-index:4; }
+.fbtn { display:flex; flex-direction:column; align-items:center; gap:1px; min-width:52px; padding:6px 6px 5px; background:rgba(17,26,36,.9); border:1px solid var(--line); border-radius:8px; cursor:pointer; font-family:var(--font-mono); font-size:12px; line-height:1.15; }
+.fbtn small { font-size:9.5px; color:var(--muted); letter-spacing:.04em; }
+.fbtn:hover { border-color:var(--accent); }
+.fbtn[aria-selected=true] { border-color:var(--accent); background:#1c2c46; color:var(--accent); }
+.fbtn[aria-selected=true] small { color:var(--accent); }
+.fbtn.add { font-size:16px; padding:3px 6px; color:var(--muted); }
+
+/* Panel */
+.panel { min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding-right:2px; }
+.sec { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; }
+.sec h2 { margin:0 0 10px; font-family:var(--font-mono); font-size:11px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+.tiles { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; }
+.tile { background:var(--panel-2); border-radius:8px; padding:7px 6px 6px; border:0; border-top:3px solid var(--c,var(--line)); min-width:0; text-align:left; cursor:pointer; color:inherit; font:inherit; }
+.tile b { display:block; font-family:var(--font-display); font-size:24px; line-height:1.1; font-variant-numeric:tabular-nums; }
+.tile span { font-size:10.5px; color:var(--muted); white-space:nowrap; }
+.tile[aria-pressed=true] { outline:1px solid var(--accent); outline-offset:-1px; }
+.meter { margin-top:12px; display:grid; gap:10px; }
+.meter .row { display:flex; justify-content:space-between; gap:8px; font-size:12px; color:var(--muted); }
+.meter .row b { color:var(--fg); font-family:var(--font-mono); font-weight:500; font-variant-numeric:tabular-nums; }
+.bar { height:6px; border-radius:99px; background:var(--panel-2); overflow:hidden; margin-top:5px; }
+.bar > div { height:100%; background:var(--accent); border-radius:99px; transition:width .5s ease; width:0; }
+
+.who { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.who h3 { margin:0; font-family:var(--font-display); font-size:20px; font-weight:600; line-height:1.2; overflow-wrap:anywhere; }
+.who .role { font-family:var(--font-mono); font-size:11.5px; color:var(--muted); overflow-wrap:anywhere; }
+.chip { display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:3px 10px 3px 8px; border-radius:99px; background:var(--panel-2); border:1px solid var(--line); white-space:nowrap; }
+.chip i, .dot { width:8px; height:8px; border-radius:50%; background:var(--c,var(--away)); display:inline-block; flex:none; }
+.now { margin:10px 0; padding:8px 10px; background:var(--panel-2); border-radius:8px; font-size:13px; overflow-wrap:anywhere; }
+.now small { display:block; font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+.facts { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+.facts div { font-size:12px; color:var(--muted); }
+.facts b { display:block; color:var(--fg); font-family:var(--font-mono); font-weight:500; font-size:13px; font-variant-numeric:tabular-nums; }
+.sub-h { font-family:var(--font-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:10px 0 6px; }
+.tasks, .tl, .feed, .roster, .lrows { list-style:none; margin:0; padding:0; }
+.tasks li { display:flex; gap:8px; align-items:flex-start; padding:3px 0; font-size:13px; }
+.tasks .ck { width:16px; height:16px; flex:none; margin-top:1px; border-radius:4px; border:1.5px solid var(--muted); display:grid; place-items:center; background:none; padding:0; }
+button.ck { cursor:pointer; }
+.tasks .tt { flex:1; min-width:0; overflow-wrap:anywhere; }
+.tasks .done { color:var(--muted); }
+.tasks .done .ck { background:var(--ok); border-color:var(--ok); }
+.tasks .done .ck::after { content:""; width:7px; height:4px; border-left:2px solid #0b1118; border-bottom:2px solid #0b1118; transform:rotate(-45deg) translate(1px,-1px); }
+.tasks .done .tt { text-decoration:line-through; text-decoration-color:#4a5a70; }
+.tasks .x { background:none; border:0; color:var(--muted); cursor:pointer; padding:0 4px; font-size:16px; line-height:1; }
+.tasks .x:hover { color:var(--danger); }
+.tl li, .feed li { display:grid; grid-template-columns:44px minmax(0,1fr); gap:8px; padding:4px 0; font-size:12.5px; border-top:1px solid var(--line); }
+.tl li:first-child, .feed li:first-child { border-top:0; }
+.tl time, .feed time { font-family:var(--font-mono); font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums; padding-top:1px; }
+.feed li.new { animation:flash 1.6s ease-out; }
+@keyframes flash { from { background:rgba(127,166,255,.22); } to { background:transparent; } }
+.feed b { font-weight:600; }
+.muted { color:var(--muted); font-size:13px; }
+.roster li + li { border-top:1px solid var(--line); }
+.roster button { width:100%; display:grid; grid-template-columns:10px minmax(0,1fr) auto; align-items:center; gap:10px; background:none; border:0; padding:7px 4px; text-align:left; cursor:pointer; border-radius:6px; }
+.roster button:hover { background:var(--panel-2); }
+.roster button[aria-pressed=true] { background:#1a2a42; }
+.roster .nm { min-width:0; }
+.roster .nm b { display:block; font-weight:500; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.roster .nm small { color:var(--muted); font-size:11.5px; }
+.roster .st { font-size:11.5px; color:var(--muted); white-space:nowrap; }
+
+/* Forms / manager controls */
+.fld { display:grid; gap:4px; margin-bottom:8px; }
+.fld label { font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+input[type="text"], select { width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:6px; padding:7px 9px; font-size:13px; }
+input[type="text"]::placeholder { color:#60708a; }
+select { cursor:pointer; }
+.seg { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0; }
+.seg button { background:var(--panel-2); border:1px solid var(--line); border-radius:99px; padding:4px 10px 4px 8px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+.seg button:hover { border-color:var(--accent); }
+.seg button[aria-pressed=true] { border-color:var(--c); background:#1b2a3d; }
+.addrow { display:flex; gap:6px; margin-top:8px; }
+.addrow input { flex:1; min-width:0; }
+.actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
+.addbox { display:grid; gap:8px; padding:10px; margin-bottom:8px; background:var(--panel-2); border-radius:8px; }
+.toast { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(16px + env(safe-area-inset-bottom,0px)); max-width:calc(100% - 32px); background:#1c2a3d; border:1px solid var(--accent); padding:8px 14px; border-radius:8px; font-size:13px; z-index:20; }
+
+/* Layout editor rows */
+.lrows li { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; padding:6px; border-top:1px solid var(--line); border-radius:6px; }
+.lrows li:first-child { border-top:0; }
+.lrows li[aria-current=true] { background:#1a2a42; outline:1px solid var(--accent); outline-offset:-1px; }
+.lrows .lmain { min-width:0; display:flex; flex-direction:column; gap:2px; background:none; border:0; padding:0; text-align:left; cursor:pointer; color:inherit; }
+.lrows .lmain b { font-size:12.5px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lrows .lmain small { font-family:var(--font-mono); font-size:10.5px; color:var(--muted); }
+.lrow-ctl { display:flex; gap:3px; align-items:center; }
+.ibtn { width:24px; height:24px; padding:0; display:grid; place-items:center; background:var(--panel-2); border:1px solid var(--line); border-radius:5px; cursor:pointer; font-size:11px; color:var(--muted); }
+.ibtn:hover { border-color:var(--accent); color:var(--fg); }
+.ibtn.x:hover { border-color:var(--danger); color:var(--danger); }
+.row2 { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.mini { font-family:var(--font-mono); font-size:10px; color:var(--muted); }
+.search { margin-bottom:8px; }
+.gap-note { font-size:12px; color:var(--muted); margin:6px 0 0; }
+
+/* Mobile tabs */
+.mtabs { display:none; gap:6px; }
+.mtabs button { flex:1; padding:8px; background:var(--panel); border:1px solid var(--line); border-radius:8px; font-size:13px; cursor:pointer; }
+.mtabs button[aria-selected=true] { border-color:var(--accent); color:var(--accent); background:#1a2a42; }
+
+@media (max-width: 900px) {
+  html, body { height:auto; }
+  .app { grid-template-columns:minmax(0,1fr); height:auto; }
+  .stage { aspect-ratio:1 / 1.1; max-height:640px; }
+  .panel { overflow:visible; }
+  .mtabs { display:flex; position:sticky; top:0; z-index:8; padding-top:4px; background:var(--bg); }
+  body[data-mtab="status"] .sec:not([data-mtab="status"]),
+  body[data-mtab="team"] .sec:not([data-mtab="team"]),
+  body[data-mtab="shop"] .sec:not([data-mtab="shop"]),
+  body[data-mtab="activity"] .sec:not([data-mtab="activity"]) { display:none; }
+}
+@media (max-width: 420px) { .hint { display:none; } .tile b { font-size:21px; } }
+@media (prefers-reduced-motion: reduce) { .feed li.new { animation:none; } .bar > div { transition:none; } }
+</style>
+</head><body>
+<div class="app">
+  <section class="stage" id="stage" aria-label="3D office view">
+    <canvas id="gl" aria-label="Interactive 3D office floor. Use the team list to select people with the keyboard."></canvas>
+    <div id="labels"></div>
+    <div class="floors" id="floorTabs" role="tablist" aria-label="Floors"></div>
+    <div class="empty" id="empty" hidden></div>
+    <div class="overlay top">
+      <div class="brand">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 21 7v10l-9 5-9-5V7z" fill="#172331" stroke="#7fa6ff" stroke-width="1.5" stroke-linejoin="round"/><path d="M3 7l9 5 9-5M12 12v10" fill="none" stroke="#7fa6ff" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        <div>
+          <b>Office Tycoon</b>
+          <div class="sub" id="floorSub">Main office</div>
+        </div>
+        <span class="pill" id="moneyBadge">$0</span>
+        <span class="pill" id="dayBadge">Day 1</span>
+        <span class="pill" id="roleBadge">Loading</span>
+        <span class="pill" id="syncBadge" hidden>Synced</span>
+      </div>
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+    <div class="overlay bottom">
+      <div class="controls">
+        <button class="btn" id="rotL" type="button">Rotate left</button>
+        <button class="btn" id="rotR" type="button">Rotate right</button>
+        <button class="btn" id="reset" type="button">Reset view</button>
+        <button class="btn pri" id="shopToggle" type="button">Shop</button>
+        <button class="btn" id="editToggle" type="button" aria-pressed="false" hidden>Edit layout</button>
+      </div>
+      <div class="hint" id="hint">Build your office empire! Hire staff, earn money, expand! Staff auto-move between work/meetings/breaks.</div>
+    </div>
+  </section>
+
+  <aside class="panel" aria-label="Office status">
+    <div class="mtabs" id="mtabs" role="tablist" aria-label="Sections">
+      <button type="button" role="tab" data-mtab="status" aria-selected="true">Overview</button>
+      <button type="button" role="tab" data-mtab="team" aria-selected="false">Staff</button>
+      <button type="button" role="tab" data-mtab="shop" aria-selected="false">Shop</button>
+      <button type="button" role="tab" data-mtab="activity" aria-selected="false">Activity</button>
+    </div>
+
+    <section class="sec" data-mtab="status">
+      <h2><span>Business Overview</span><span id="presentTxt"></span></h2>
+      <div class="tiles" id="tiles"></div>
+      <div class="meter">
+        <div>
+          <div class="row"><span>Staff Productivity</span><b id="attTxt"></b></div>
+          <div class="bar"><div id="attBar"></div></div>
+        </div>
+        <div>
+          <div class="row"><span>Tasks completed</span><b id="taskTxt"></b></div>
+          <div class="bar"><div id="taskBar"></div></div>
+        </div>
+        <div>
+          <div class="row"><span>Income per second</span><b>$<span id="incomePerSec">0</span></b></div>
+          <div class="row"><span>Daily expenses</span><b>$<span id="dailyExp">700</span></b></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-mtab="shop" id="shopSection">
+      <h2><span>Shop & Upgrades</span></h2>
+      <div class="sub-h">Hiring</div>
+      <div style="display:grid; gap:6px;">
+        <button class="btn" type="button" id="hireBasic">Hire Basic Employee ($2000)</button>
+        <button class="btn" type="button" id="hireSkilled">Hire Skilled Employee ($5000)</button>
+      </div>
+      <div class="sub-h">Upgrades</div>
+      <div style="display:grid; gap:6px;">
+        <button class="btn" type="button" id="upgradeIncome">Upgrade Income (+$10/emp) ($3000)</button>
+        <button class="btn" type="button" id="buyDesk">Buy Desk ($150)</button>
+        <button class="btn" type="button" id="buyRoom">Buy Room ($2000)</button>
+      </div>
+      <div class="sub-h">Danger zone</div>
+      <div style="display:grid; gap:6px;">
+        <button class="btn danger" type="button" id="resetGame">Reset game</button>
+      </div>
+      <p class="gap-note">Resets the game: removes all staff, restores the default office and starts over with $5,000 on Day 1.</p>
+    </section>
+
+    <section class="sec" id="detail" data-mtab="status" aria-live="polite"></section>
+    <section class="sec" id="team" data-mtab="team"></section>
+    <section class="sec" id="layoutSec" data-mtab="team" hidden></section>
+
+    <section class="sec" data-mtab="activity">
+      <h2><span>Recent activity</span><span id="feedNote"></span></h2>
+      <ul class="feed" id="feed"></ul>
+    </section>
+  </aside>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+"use strict";
+/* ---------- Utilities ---------- */
+var $ = function (s) { return document.querySelector(s); };
+var clamp = function (v, a, b) { return Math.min(b, Math.max(a, v)); };
+var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var sn = function (x) { return reduceMotion ? 0 : Math.sin(x); };
+function fmt(d) { return new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }); }
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+function hashId(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 1000; return h; }
+function uid(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function snap(v) { return Math.round(v * 2) / 2; }
+
+var STATUS = {
+  working: { label: "Working", hex: 0x3ddc97, css: "var(--ok)", verb: "Started working" },
+  meeting: { label: "In meeting", hex: 0x4cc9f0, css: "var(--meet)", verb: "Joined a meeting" },
+  break:   { label: "On break", hex: 0xffb84d, css: "var(--brk)", verb: "Went on break" },
+  away:    { label: "Away", hex: 0x8793a8, css: "var(--away)", verb: "Stepped away" },
+  absent:  { label: "Not in", hex: 0x5d6a7e, css: "var(--off)", verb: "Left for the day" }
+};
+var ORDER = ["working", "meeting", "break", "away", "absent"];
+var TILE_LABEL = { working: "Working", meeting: "Meeting", break: "Break", away: "Away", absent: "Not in" };
+var ROOM_TYPES = { meeting: "Meeting", pantry: "Pantry", reception: "Reception" };
+var SHELL = { x1: -13, z1: -9, x2: 13, z2: 9 };   /* fixed building shell */
+var HUB = { x: 1.2, z: 0.5 }, ENTRANCE = { x: 12.2, z: 0.5 };
+var MAX_FLOORS = 12, MAX_ROOMS = 8;
+
+/* ---------- Layout model ---------- */
+/* layout = { v:1, floors:[{ id, name, desks:[{id,x,z}], rooms:[{id,type,name,x,z,w,d}] }] } */
+function defaultDesks() {
+  var xs = [-9, -5.5, -2], zs = [-6.5, -2.5, 1.5, 5.5], out = [];
+  zs.forEach(function (z) { xs.forEach(function (x) { if (out.length < 10) out.push({ id: uid("d"), x: x, z: z }); }); });
+  return out;
+}
+function defaultRooms() {
+  return [
+    { id: uid("r"), type: "meeting", name: "Meeting room", x: 4.5, z: -8, w: 7.5, d: 6 },
+    { id: uid("r"), type: "pantry", name: "Pantry", x: 4.5, z: 3, w: 4, d: 5 },
+    { id: uid("r"), type: "reception", name: "Reception", x: 9.2, z: 3, w: 3.2, d: 5 }
+  ];
+}
+function makeFloor(name) { return { id: uid("f"), name: name, desks: defaultDesks(), rooms: defaultRooms() }; }
+function defaultLayout() {
+  var floors = [];
+  for (var i = 1; i <= 4; i++) floors.push(makeFloor("Floor " + i));
+  return { v: 1, floors: floors };
+}
+function normLayout(raw) {
+  if (!raw || !Array.isArray(raw.floors) || !raw.floors.length) return null;
+  var floors = [];
+  raw.floors.forEach(function (f, i) {
+    if (!f || !Array.isArray(f.desks)) return;
+    var rooms = (Array.isArray(f.rooms) ? f.rooms : []).filter(function (r) { return r && ROOM_TYPES[r.type]; }).map(function (r) {
+      return { id: String(r.id || uid("r")), type: r.type, name: String(r.name || ROOM_TYPES[r.type]),
+        x: +r.x || 0, z: +r.z || 0, w: clamp(+r.w || 4, 2, 30), d: clamp(+r.d || 4, 2, 30) };
+    });
+    floors.push({
+      id: String(f.id || uid("f")), name: String(f.name || ("Floor " + (i + 1))).slice(0, 30),
+      desks: f.desks.map(function (k) { return { id: String(k.id || uid("d")), x: +k.x || 0, z: +k.z || 0 }; }),
+      rooms: rooms
+    });
+  });
+  if (!floors.length) return null;
+  if (floors.length > MAX_FLOORS) floors = floors.slice(0, MAX_FLOORS);
+  return { v: 1, floors: floors };
+}
+function roomSeats(r) {
+  /* deterministic seat/spots list for a room rectangle */
+  var out = [], cx = r.x + r.w / 2, cz = r.z + r.d / 2, i;
+  if (r.type === "meeting") {
+    var tw = Math.max(2, r.w - 3.2), n = clamp(Math.floor(tw / 1.8) + 1, 2, 6);
+    for (i = 0; i < n; i++) {
+      var x = n === 1 ? cx : cx - tw / 2 + (tw / (n - 1)) * i;
+      out.push({ x: x, z: r.z + 1.15 }); out.push({ x: x, z: r.z + r.d - 1.15 });
+    }
+  } else if (r.type === "pantry") {
+    for (i = 0; i < 6; i++) {
+      var a = (i / 6) * Math.PI * 2;
+      out.push({ x: clamp(cx + Math.cos(a) * Math.min(1.6, r.w / 2 - .7), r.x + .6, r.x + r.w - .6),
+        z: clamp(cz + Math.sin(a) * Math.min(1.6, r.d / 2 - .7), r.z + .6, r.z + r.d - .6) });
+    }
+  } else { out.push({ x: cx, z: r.z + r.d - 1.8 }); }
+  return out;
+}
+function roomDoor(r) {
+  /* nearest side to the hub, with a door point on that side */
+  var z1 = r.z, z2 = r.z + r.d, x1 = r.x, x2 = r.x + r.w;
+  var dN = Math.abs(HUB.z - z1), dS = Math.abs(HUB.z - z2), dW = Math.abs(HUB.x - x1), dE = Math.abs(HUB.x - x2);
+  var min = Math.min(dN, dS, dW, dE);
+  if (min === dS) return { axis: "z", x: clamp(HUB.x, x1 + 1, x2 - 1), z: z2 };
+  if (min === dN) return { axis: "z", x: clamp(HUB.x, x1 + 1, x2 - 1), z: z1 };
+  if (min === dE) return { axis: "x", x: x2, z: clamp(HUB.z, z1 + 1, z2 - 1) };
+  return { axis: "x", x: x1, z: clamp(HUB.z, z1 + 1, z2 - 1) };
+}
+
+/* ---------- Geometry validation ---------- */
+function roomRect(r) { return { x1: r.x, z1: r.z, x2: r.x + r.w, z2: r.z + r.d }; }
+function deskRect(d) { return { x1: d.x - 1.4, z1: d.z - 1.1, x2: d.x + 1.4, z2: d.z + 1.7 }; }
+function overlap(a, b, m) { m = m || 0; return a.x1 < b.x2 + m && a.x2 > b.x1 - m && a.z1 < b.z2 + m && a.z2 > b.z1 - m; }
+function inShell(rc, m) { m = m || .4; return rc.x1 > SHELL.x1 + m && rc.x2 < SHELL.x2 - m && rc.z1 > SHELL.z1 + m && rc.z2 < SHELL.z2 - m; }
+function deskValid(floor, cand, ignoreId) {
+  var rc = deskRect(cand);
+  if (!inShell(rc, .5)) return false;
+  var i, rooms = floor.rooms;
+  for (i = 0; i < rooms.length; i++) if (overlap(rc, roomRect(rooms[i]), .5)) return false;
+  for (i = 0; i < floor.desks.length; i++) {
+    var d = floor.desks[i];
+    if (d.id === ignoreId) continue;
+    if (overlap(rc, deskRect(d), .4)) return false;
+  }
+  return true;
+}
+function roomValid(floor, cand, ignoreId) {
+  var rc = roomRect(cand);
+  if (!inShell(rc, .5)) return false;
+  var i, rooms = floor.rooms;
+  for (i = 0; i < rooms.length; i++) {
+    if (rooms[i].id === ignoreId) continue;
+    if (overlap(rc, roomRect(rooms[i]), .5)) return false;
+  }
+  for (i = 0; i < floor.desks.length; i++) if (overlap(rc, deskRect(floor.desks[i]), .5)) return false;
+  return true;
+}
+function findDeskSpot(floor) {
+  var x, z;
+  for (z = -7; z <= 6.5; z += 0.5) for (x = -11; x <= 11; x += 0.5) {
+    var c = { x: x, z: z };
+    if (deskValid(floor, c)) return c;
+  }
+  return null;
+}
+
+/* ---------- Storage adapter: Claude DB when available, localStorage otherwise ---------- */
+var LS_KEY = "officetrack.v1";
+var store = {
+  mode: null,          /* "cloud" | "local" */
+  canEdit: false,
+  db: null,
+  _layout: null,       /* last known layout (local mode cache) */
+  _staff: {}           /* id -> data (local mode cache) */
+};
+var layoutListeners = [], staffListeners = [];
+function emitLayout() { layoutListeners.forEach(function (f) { try { f(store._layout); } catch (x) {} }); }
+function emitStaff() { staffListeners.forEach(function (f) { try { f(store._staff); } catch (x) {} }); }
+function lsLoad() {
+  try { var raw = localStorage.getItem(LS_KEY); if (!raw) return; var o = JSON.parse(raw);
+    store._layout = normLayout(o.layout); store._staff = o.staff || {}; }
+  catch (x) { store._staff = {}; }
+}
+function lsSave() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ layout: store._layout, staff: store._staff })); return Promise.resolve(); }
+  catch (x) { return Promise.reject({ code: "quota_exceeded" }); }
+}
+function storeInit() {
+  var api = window.claude;
+  if (!api || !api.use) { store.mode = "local"; store.canEdit = true; lsLoad(); return Promise.resolve(); }
+  return Promise.all([api.use("db"), api.use("user")]).then(function (r) {
+    store.db = r[0]; var user = r[1];
+    if (!store.db) { store.mode = "local"; store.canEdit = true; lsLoad(); return; }
+    store.mode = "cloud";
+    return Promise.resolve(user && user.canEdit ? user.canEdit() : false).then(function (ce) { store.canEdit = !!ce; });
+  }).catch(function () { store.mode = "local"; store.canEdit = true; lsLoad(); });
+}
+function storeWatchLayout(cb) {
+  layoutListeners.push(cb);
+  if (store.mode !== "cloud") { cb(store._layout); return; }
+  store.db.doc("config/layout").onSnapshot(function (s) {
+    store._layout = s.exists ? normLayout(s.data()) : null; cb(store._layout);
+  }, function () { cb(store._layout); });
+}
+function storeWatchStaff(cb) {
+  staffListeners.push(cb);
+  if (store.mode !== "cloud") { cb(store._staff); return; }
+  store.db.collection("staff").onSnapshot(function (snap) {
+    var m = {}; snap.docs.forEach(function (d) { m[d.id] = d.data() || {}; });
+    store._staff = m; cb(m);
+  }, function () { cb(store._staff); });
+}
+function storePutLayout(ly) {
+  store._layout = ly;
+  if (store.mode !== "cloud") { emitLayout(); return lsSave(); }
+  return store.db.doc("config/layout").set(ly);
+}
+function storePutStaff(id, data) {          /* full doc (create) */
+  store._staff[id] = data;
+  if (store.mode !== "cloud") { emitStaff(); return lsSave(); }
+  return store.db.doc("staff/" + id).set(data);
+}
+function storePatchStaff(id, patch) {       /* partial update */
+  var prev = store._staff[id] || {};
+  store._staff[id] = Object.assign({}, prev, patch);
+  if (store.mode !== "cloud") { emitStaff(); return lsSave(); }
+  return store.db.doc("staff/" + id).update(patch);
+}
+function storeDelStaff(id) {
+  delete store._staff[id];
+  if (store.mode !== "cloud") { emitStaff(); return lsSave(); }
+  return store.db.doc("staff/" + id).delete();
+}
+window.addEventListener("storage", function (e) {
+  if (e.key !== LS_KEY || store.mode !== "local") return;
+  lsLoad(); emitLayout(); emitStaff();
+});
+/* ---------- Game State ---------- */
+var DAY_MS = 24000;   /* one in-game day = 24 real seconds */
+var gameState = {
+  money: 5000,
+  day: 1,
+  dayElapsed: 0,     /* ms into the current day */
+  incomePerEmployee: 50,
+  rent: 500,
+  utilities: 200,
+  lastTick: Date.now(),
+  tickRate: 1000, // 1 second per game tick
+  lastStatusChange: Date.now()
+};
+
+function saveGameState() {
+  try {
+    localStorage.setItem('officetycoon_gamestate', JSON.stringify({
+      money: gameState.money,
+      day: gameState.day,
+      dayElapsed: gameState.dayElapsed,
+      incomePerEmployee: gameState.incomePerEmployee,
+      rent: gameState.rent,
+      utilities: gameState.utilities,
+      lastTick: gameState.lastTick,
+      lastStatusChange: gameState.lastStatusChange
+    }));
+  } catch(e) {}
+}
+
+function loadGameState() {
+  try {
+    var saved = localStorage.getItem('officetycoon_gamestate');
+    if (saved) {
+      var data = JSON.parse(saved);
+      gameState.money = data.money !== undefined ? data.money : 5000;
+      gameState.day = (data.day >= 1 && data.day < 10000) ? Math.floor(data.day) : 1;
+      gameState.dayElapsed = data.dayElapsed >= 0 ? data.dayElapsed : 0;
+      gameState.incomePerEmployee = data.incomePerEmployee !== undefined ? data.incomePerEmployee : 50;
+      gameState.rent = data.rent !== undefined ? data.rent : 500;
+      gameState.utilities = data.utilities !== undefined ? data.utilities : 200;
+      gameState.lastTick = Date.now();
+      gameState.lastStatusChange = data.lastStatusChange !== undefined ? data.lastStatusChange : Date.now();
+    }
+  } catch(e) {}
+}
+
+function updateGameUI() {
+  $("#moneyBadge").textContent = "$" + gameState.money.toLocaleString();
+  $("#dayBadge").textContent = "Day " + gameState.day;
+}
+function autoManageStatus() {
+  var now = Date.now();
+  // Change status every 15-45 seconds randomly
+  if (now - gameState.lastStatusChange > 15000 + Math.random() * 30000) {
+    gameState.lastStatusChange = now;
+    var empsList = list().filter(function(e) { return e.status !== "absent"; });
+    if (empsList.length === 0) return;
+    // Pick a random employee
+    var emp = empsList[Math.floor(Math.random() * empsList.length)];
+    var rand = Math.random();
+    if (rand < 0.6 && emp.status !== "working") {
+      // Return to work most of the time
+      setStatus(emp, "working");
+    } else if (rand < 0.75 && emp.status === "working") {
+      // Go to meeting
+      setStatus(emp, "meeting");
+    } else if (rand < 0.85 && emp.status === "working") {
+      // Break
+      setStatus(emp, "break");
+    } else if (rand < 0.9 && emp.status === "working") {
+      // Away briefly
+      setStatus(emp, "away");
+    }
+  }
+}
+function gameTick() {
+  var now = Date.now();
+  var elapsed = now - gameState.lastTick;
+  if (elapsed >= gameState.tickRate) {
+    gameState.lastTick = now;
+    // Auto-manage statuses
+    autoManageStatus();
+    // Calculate income (only working employees earn money)
+    var activeEmps = list().filter(function(e) { return e.status === "working"; });
+    var income = activeEmps.length * gameState.incomePerEmployee;
+    if (income > 0) {
+      gameState.money += income;
+    }
+    // Daily expenses every ~24 seconds (day counter, not wall clock)
+    gameState.dayElapsed += elapsed;
+    if (gameState.dayElapsed >= DAY_MS) {
+      var days = Math.floor(gameState.dayElapsed / DAY_MS);
+      gameState.dayElapsed -= days * DAY_MS;
+      gameState.money -= (gameState.rent + gameState.utilities);
+      gameState.day += days;
+      toast("Day " + gameState.day + " completed. Expenses: $" + (gameState.rent + gameState.utilities));
+    }
+    saveGameState();
+    updateGameUI();
+  }
+}
+
+/* ---------- State ---------- */
+var emps = {}, selectedId = null, pendingId = null, adding = false, arm = null; /* arm = {kind,id,t} two-click confirm */
+var chain = {}, seenFeed = null, loaded = false, dbProblem = "";
+var layout = null, floorId = null, editMode = false, rosterFilter = null, rosterQuery = "";
+var sceneOk = false;
+
+function list() { return Object.keys(emps).map(function (k) { return emps[k]; }).sort(function (a, b) { return (a.order || 0) - (b.order || 0); }); }
+function curFloor() {
+  if (!layout) return null;
+  var f = layout.floors.filter(function (x) { return x.id === floorId; })[0];
+  return f || layout.floors[0];
+}
+function floorOf(e) { return layout ? (layout.floors.filter(function (f) { return f.id === e.floorId; })[0] || null) : null; }
+function deskOf(e) { var f = floorOf(e); return f ? (f.desks.filter(function (d) { return d.id === e.deskId; })[0] || null) : null; }
+function onCurFloor(e) { var f = curFloor(); return !!f && e.floorId === f.id; }
+function takeSeat(kind, e) {
+  var f = floorOf(e); if (!f) return;
+  var rooms = f.rooms.filter(function (r) { return r.type === kind; }), i, j;
+  for (i = 0; i < rooms.length; i++) {
+    var seats = roomSeats(rooms[i]);
+    for (j = 0; j < seats.length; j++) {
+      var key = rooms[i].id + ":" + j;
+      if (occupied[key] === undefined) { occupied[key] = e.id; e.seatKey = key; return; }
+    }
+  }
+}
+function releaseSeat(e) { if (e.seatKey != null) { delete occupied[e.seatKey]; e.seatKey = null; } }
+var occupied = {};
+function rebuildSeats() {
+  occupied = {};
+  list().forEach(function (e) {
+    e.seatKey = null;
+    if (e.status === "meeting") takeSeat("meeting", e);
+    else if (e.status === "break") takeSeat("pantry", e);
+    /* snap idle people to their (possibly moved) place after layout changes */
+    if (!e.route.length && e.status !== "absent" && onCurFloor(e)) {
+      var l = locOf(e); e.x = l.pt.x; e.z = l.pt.z;
+    }
+  });
+}
+function locOf(e) {
+  if (e.seatKey != null) {
+    var pr = e.seatKey.split(":"), f = floorOf(e);
+    if (f) {
+      var r = f.rooms.filter(function (x) { return x.id === pr[0]; })[0];
+      if (r) { var s = roomSeats(r)[+pr[1]]; if (s) return { kind: r.type === "pantry" ? "break" : "meeting", pt: s, room: r }; }
+    }
+  }
+  var d = deskOf(e);
+  return d ? { kind: "desk", pt: { x: d.x, z: d.z + 1.25 } } : { kind: "desk", pt: { x: HUB.x, z: HUB.z } };
+}
+function pathTo(e, loc) {
+  /* generalized: hub -> aisle z -> column x -> target; rooms via their door */
+  if (loc.kind === "desk") {
+    var z = loc.pt.z - 1.25;
+    return [HUB, { x: HUB.x, z: z + 2.4 }, { x: loc.pt.x + 1.0, z: z + 2.4 }, { x: loc.pt.x + 1.0, z: loc.pt.z }, loc.pt];
+  }
+  var dr = loc.room ? roomDoor(loc.room) : null;
+  if (dr) return [HUB, { x: dr.x, z: HUB.z }, { x: dr.x, z: dr.z }, loc.pt];
+  if (loc.kind === "meeting") return [HUB, { x: loc.pt.x, z: HUB.z }, { x: loc.pt.x, z: HUB.z - 3.5 }, loc.pt];
+  return [HUB, { x: loc.pt.x, z: HUB.z }, { x: loc.pt.x, z: loc.pt.z - 1.6 }, loc.pt];
+}
+function seedPos(e) { var l = locOf(e); e.x = l.pt.x; e.z = l.pt.z; }
+
+/* ---------- Employee records ---------- */
+function copyData(e, d) {
+  e.name = d.name || "Unnamed"; e.first = e.name.split(" ")[0]; e.role = d.role || "";
+  e.tasks = Array.isArray(d.tasks) ? d.tasks : []; e.log = Array.isArray(d.log) ? d.log : [];
+  e.checkIn = d.checkIn || null; e.order = d.order || 0;
+  e.look = d.look || { skin: 0, hair: 0, hc: 0, pants: 0 };
+  e.days = d.days && typeof d.days === "object" ? d.days : {};
+  /* floor/desk binding (migrate legacy integer desk) */
+  var f = curFloor();
+  if (layout) {
+    var fl = layout.floors.filter(function (x) { return x.id === d.floorId; })[0] || f;
+    var ds = fl.desks.filter(function (x) { return x.id === d.deskId; })[0];
+    if (!ds) {
+      var used = {}; list().forEach(function (x) { if (x !== e && x.floorId === fl.id && x.deskId) used[x.deskId] = 1; });
+      ds = fl.desks.filter(function (x) { return !used[x.id]; })[0] || fl.desks[0];
+    }
+    if (ds) { e.floorId = fl.id; e.deskId = ds.id; }
+    else { e.floorId = fl.id; e.deskId = null; }
+  }
+}
+function applyDoc(id, d) {
+  var e = emps[id], st = STATUS[d.status] ? d.status : "absent";
+  if (!e) {
+    e = emps[id] = { id: id, idn: hashId(id), seatKey: null, route: [], rot: Math.PI, faceTo: Math.PI, opacity: 1, phase: 0 };
+    copyData(e, d); e.status = st;
+    if (st === "meeting") takeSeat("meeting", e);
+    else if (st === "break") takeSeat("pantry", e);
+    seedPos(e);
+    if (sceneOk) makeAvatar(e);
+    return;
+  }
+  var lookBefore = JSON.stringify(e.look), prev = e.status;
+  copyData(e, d);
+  if (sceneOk && JSON.stringify(e.look) !== lookBefore) rebuildLook(e);
+  if (st !== prev) changeStatus(e, st, prev);
+}
+function removeEmp(id) {
+  var e = emps[id]; if (!e) return;
+  releaseSeat(e);
+  if (sceneOk) { if (e.group) scene.remove(e.group); if (e.disc) scene.remove(e.disc); }
+  if (tags[id]) { tags[id].remove(); delete tags[id]; }
+  delete emps[id];
+}
+function changeStatus(e, s, prev) {
+  var from = locOf(e), moving = e.route.length > 0;
+  releaseSeat(e); e.status = s;
+  if (s === "meeting") takeSeat("meeting", e);
+  else if (s === "break") takeSeat("pantry", e);
+  var to = locOf(e);
+  if (sceneOk) e.targetColor = new T.Color(STATUS[s].hex);
+  if (!sceneOk) return;
+  if (s === "absent") {
+    e.route = (moving ? [HUB] : pathTo(e, from).slice().reverse()).concat([ENTRANCE]);
+  } else if (prev === "absent") {
+    e.x = ENTRANCE.x; e.z = ENTRANCE.z; e.group.visible = true; e.disc.visible = true;
+    e.route = pathTo(e, to).slice();
+  } else if (moving) {
+    e.route = [HUB].concat(pathTo(e, to));
+  } else if (to.pt.x !== from.pt.x || to.pt.z !== from.pt.z) {
+    e.route = pathTo(e, from).slice().reverse().concat(pathTo(e, to));
+  }
+}
+function changeFloor(e, newFloorId) {
+  if (e.floorId === newFloorId) return;
+  releaseSeat(e); e.floorId = newFloorId; e.route = [];
+  /* pick a free desk on the target floor */
+  var f = layout.floors.filter(function (x) { return x.id === newFloorId; })[0]; if (!f) return;
+  var used = {}; list().forEach(function (x) { if (x !== e && x.floorId === f.id && x.deskId) used[x.deskId] = 1; });
+  var ds = f.desks.filter(function (x) { return !used[x.id]; })[0] || null;
+  e.deskId = ds ? ds.id : null;
+  if (e.status === "meeting") takeSeat("meeting", e);
+  else if (e.status === "break") takeSeat("pantry", e);
+  seedPos(e);
+  if (sceneOk && e.group) { e.rot = Math.PI; e.faceTo = Math.PI; }
+}
+
+/* ---------- Writes (manager only) ---------- */
+var toastTimer = 0;
+function toast(msg) {
+  var t = $("#toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 4200);
+}
+function errMsg(err) {
+  var c = err && err.code;
+  if (c === "invalid_argument") return "Could not save. Only the owner or an editor can change the team.";
+  if (c === "quota_exceeded") return "The saved-data limit is full. Remove old records and try again.";
+  return "Could not save that change. Please try again.";
+}
+function queue(id, fn) {
+  chain[id] = (chain[id] || Promise.resolve()).then(fn).catch(function (err) { toast(errMsg(err)); });
+  return chain[id];
+}
+function patch(id, p) { if (!store.canEdit) return; queue(id, function () { return storePatchStaff(id, p); }); }
+function putLayout(fn) {
+  if (!store.canEdit || !layout) return;
+  var copy = JSON.parse(JSON.stringify(layout));
+  fn(copy);
+  var n = normLayout(copy); if (!n) return;
+  layout = n;                    /* apply optimistically for instant UI */
+  queue("layout", function () { return storePutLayout(n); });
+}
+function withLog(e, text, p) { p.log = e.log.concat([{ t: Date.now(), text: text }]).slice(-20); return p; }
+
+function setStatus(e, s) {
+  if (e.status === s) return;
+  var p = { status: s }, text, day = new Date().toISOString().slice(0, 10);
+  if (e.status === "absent") { p.checkIn = Date.now(); text = "Checked in"; if (s !== "working") text += ", " + STATUS[s].label.toLowerCase(); }
+  else if (s === "absent") { text = STATUS.absent.verb; }
+  else if (s === "working") { var o = e.tasks.filter(function (t) { return !t.done; })[0]; text = o ? "Working on: " + o.t : "Back to work"; }
+  else text = STATUS[s].verb;
+  /* attendance history: record in/out per day */
+  var days = Object.assign({}, e.days), rec = Object.assign({}, days[day] || {});
+  if (s !== "absent") { if (!rec.in) rec.in = Date.now(); rec.out = null; }
+  else { if (!rec.in) rec.in = e.checkIn || Date.now(); rec.out = Date.now(); }
+  days[day] = rec;
+  var keys = Object.keys(days).sort(); while (keys.length > 14) delete days[keys.shift()];
+  p.days = days;
+  patch(e.id, withLog(e, text, p));
+}
+function addEmployee(name, role) {
+  name = (name || "").trim(); if (!name) { toast("Type a name first."); return; }
+  var f = curFloor(); if (!f) return;
+  var used = {}; list().forEach(function (x) { if (x.floorId === f.id && x.deskId) used[x.deskId] = 1; });
+  var ds = f.desks.filter(function (x) { return !used[x.id]; })[0];
+  if (!ds) { toast("All " + f.desks.length + " desks on " + f.name + " are taken. Add a desk or remove someone first."); return; }
+  var id = uid("e"), now = Date.now();
+  pendingId = id; selectedId = id; adding = false;
+  queue(id, function () {
+    return storePutStaff(id, { name: name.slice(0, 60), role: (role || "").trim().slice(0, 60), status: "working",
+      tasks: [], checkIn: now, floorId: f.id, deskId: ds.id, look: randLook(),
+      log: [{ t: now, text: "Checked in" }], days: {}, order: now });
+  }).then(function () { pendingId = null; renderAll(); }, function () { pendingId = null; });
+  renderAll();
+}
+/* ---------- Three.js scene ---------- */
+var stage = $("#stage"), canvas = $("#gl"), labelsEl = $("#labels");
+var T = window.THREE;
+var scene, camera, renderer, world;
+var cam = { az: 0.62, phi: 0.92, zoom: 1, tAz: 0.62, tPhi: 0.92, tZoom: 1, base: 38 };
+var ray, mouse, ringMesh, W = 1, H = 1;
+var tags = {}, zoneTags = [];
+var pick = [];                 /* pickable avatar groups */
+var deskPick = [], roomPick = [];  /* editable meshes when editMode */
+var dragObj = null;            /* {kind,id,mesh,off,valid} while dragging */
+
+function std(c, o) { return new T.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.75, metalness: 0.05 }, o || {})); }
+var buildTag = null;   /* while building a desk/room, tag meshes for edit picking */
+function box(w, h, d, mat, x, y, z, parent, noShadow) {
+  var m = new T.Mesh(new T.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z); m.castShadow = !noShadow; m.receiveShadow = true;
+  if (buildTag) m.userData = Object.assign({}, buildTag);
+  (parent || world).add(m); return m;
+}
+function tile(x1, z1, x2, z2, color) {
+  var m = new T.Mesh(new T.PlaneGeometry(x2 - x1, z2 - z1), std(color, { roughness: 0.95 }));
+  m.rotation.x = -Math.PI / 2; m.position.set((x1 + x2) / 2, 0.01, (z1 + z2) / 2); m.receiveShadow = true;
+  if (buildTag) m.userData = Object.assign({}, buildTag);
+  world.add(m);
+}
+function wall(x1, z1, x2, z2, h, mat) {
+  var t = 0.2, horiz = Math.abs(x2 - x1) > Math.abs(z2 - z1), len = horiz ? Math.abs(x2 - x1) : Math.abs(z2 - z1);
+  return box(horiz ? len : t, h, horiz ? t : len, mat, (x1 + x2) / 2, h / 2, (z1 + z2) / 2);
+}
+function plant(x, z) {
+  box(0.55, 0.45, 0.55, std(0x3a4658), x, 0.225, z);
+  var s = new T.Mesh(new T.SphereGeometry(0.55, 12, 10), std(0x2f9e6a, { roughness: 0.9 }));
+  s.position.set(x, 0.95, z); s.castShadow = true; world.add(s);
+}
+function disposeWorld() {
+  if (!world) return;
+  world.traverse(function (o) { if (o.geometry) o.geometry.dispose(); if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) { m.dispose(); }); } });
+  scene.remove(world); world = null;
+  deskPick = []; roomPick = [];
+}
+
+function buildDesk(d) {
+  buildTag = { deskId: d.id };
+  var wood = std(0x8c7050), dark = std(0x10161e), seatMat = std(0x2f3d54);
+  box(2.2, 0.12, 1.1, wood, d.x, 0.78, d.z);
+  box(0.1, 0.72, 0.9, wood, d.x - 1.0, 0.36, d.z); box(0.1, 0.72, 0.9, wood, d.x + 1.0, 0.36, d.z);
+  box(0.12, 0.3, 0.12, dark, d.x, 0.99, d.z - 0.25);
+  var scr = std(0x0a0f15, { emissive: 0x000000, emissiveIntensity: 1 });
+  box(1.0, 0.6, 0.06, scr, d.x, 1.4, d.z - 0.25);
+  screens[d.id] = scr;
+  box(0.8, 0.04, 0.28, dark, d.x, 0.86, d.z + 0.15, null, true);
+  box(0.62, 0.1, 0.62, seatMat, d.x, 0.5, d.z + 1.35);
+  box(0.62, 0.55, 0.1, seatMat, d.x, 0.82, d.z + 1.68);
+  buildTag = null;
+}
+function buildRoom(r) {
+  buildTag = { roomId: r.id };
+  var glass = std(0x7fd8f0, { transparent: true, opacity: 0.22, roughness: 0.1, metalness: 0.2 });
+  var solid = std(0x2c3b52), seatMat = std(0x2f3d54);
+  var x1 = r.x, z1 = r.z, x2 = r.x + r.w, z2 = r.z + r.d;
+  /* floor tint */
+  tile(x1, z1, x2, z2, r.type === "meeting" ? 0x1c3441 : r.type === "pantry" ? 0x2d2c3e : 0x2a2f38);
+  if (r.type === "meeting") {
+    var h = 1.8, dr = roomDoor(r), gap = 1.6;
+    /* walls with a door gap on the side facing the hub */
+    if (dr.axis === "z") {
+      if (Math.abs(z1 - dr.z) < 0.01) { if (dr.x - gap / 2 > x1) wall(x1, z1, dr.x - gap / 2, z1, h, glass); if (dr.x + gap / 2 < x2) wall(dr.x + gap / 2, z1, x2, z1, h, glass); }
+      else { if (dr.x - gap / 2 > x1) wall(x1, z2, dr.x - gap / 2, z2, h, glass); if (dr.x + gap / 2 < x2) wall(dr.x + gap / 2, z2, x2, z2, h, glass); }
+      wall(x1, z1, x1, z2, h, glass); wall(x2, z1, x2, z2, h, glass);
+    } else {
+      if (Math.abs(x1 - dr.x) < 0.01) { if (dr.z - gap / 2 > z1) wall(x1, z1, x1, dr.z - gap / 2, h, glass); if (dr.z + gap / 2 < z2) wall(x1, dr.z + gap / 2, x1, z2, h, glass); }
+      else { if (dr.z - gap / 2 > z1) wall(x2, z1, x2, dr.z - gap / 2, h, glass); if (dr.z + gap / 2 < z2) wall(x2, dr.z + gap / 2, x2, z2, h, glass); }
+      wall(x1, z1, x2, z1, h, glass); wall(x1, z2, x2, z2, h, glass);
+    }
+    var tw = Math.max(2, r.w - 3.2);
+    box(tw, 0.12, 1.6, std(0xb6a07f), r.x + r.w / 2, 0.78, r.z + r.d / 2);
+    box(0.5, 0.74, 0.5, std(0x6f6048), r.x + r.w / 2, 0.37, r.z + r.d / 2);
+    box(Math.min(4.2, tw), 1.4, 0.08, std(0xdfe8f2, { emissive: 0x2a3a4f, emissiveIntensity: 0.6 }), r.x + r.w / 2, 1.7, z1 + 0.15);
+    roomSeats(r).forEach(function (s) { box(0.6, 0.1, 0.6, seatMat, s.x, 0.5, s.z); });
+  } else if (r.type === "pantry") {
+    box(Math.min(5.2, r.w - .6), 0.9, 0.7, std(0x56677f), r.x + r.w / 2, 0.45, z2 - 0.55);
+    if (r.w >= 3) box(0.7, 0.35, 0.5, std(0xffb84d, { emissive: 0x6b4a14, emissiveIntensity: 0.6 }), r.x + 1.0, 1.07, z2 - 0.55);
+    var pt = new T.Mesh(new T.CylinderGeometry(0.85, 0.85, 0.1, 24), std(0xc2b49a));
+    pt.position.set(r.x + r.w / 2, 0.78, r.z + r.d / 2); pt.castShadow = true; pt.receiveShadow = true; world.add(pt);
+    var pb = new T.Mesh(new T.CylinderGeometry(0.12, 0.12, 0.74, 10), std(0x6f6048));
+    pb.position.set(r.x + r.w / 2, 0.37, r.z + r.d / 2); world.add(pb);
+  } else {
+    var rw = Math.min(3.6, r.w - .6);
+    box(rw, 0.95, 1.0, std(0x56677f), r.x + r.w / 2, 0.475, r.z + r.d - 1.0);
+    box(rw, 0.08, 1.1, std(0xb6a07f), r.x + r.w / 2, 0.99, r.z + r.d - 1.0);
+  }
+  buildTag = null;
+}
+var screens = {};
+function buildWorld() {
+  var f = curFloor(); if (!f) return;
+  disposeWorld(); screens = {};
+  world = new T.Group(); scene.add(world);
+  zoneTags.forEach(function (z) { z.el.remove(); }); zoneTags = [];
+
+  box(27, 0.6, 19, std(0x0e1621), 0, -0.35, 0);
+  box(26, 0.1, 18, std(0x1a2534), 0, -0.05, 0);
+  tile(SHELL.x1, SHELL.z1, SHELL.x2, SHELL.z2, 0x213047);
+
+  var wallMat = std(0x2c3b52);
+  wall(SHELL.x1, SHELL.z1, SHELL.x2, SHELL.z1, 0.9, wallMat); wall(SHELL.x1, SHELL.z2, SHELL.x2, SHELL.z2, 0.9, wallMat);
+  wall(SHELL.x1, SHELL.z1, SHELL.x1, SHELL.z2, 0.9, wallMat); wall(SHELL.x2, SHELL.z1, SHELL.x2, SHELL.z2, 0.9, wallMat);
+
+  f.rooms.forEach(buildRoom);
+  f.desks.forEach(buildDesk);
+  plant(-12.2, -8.2); plant(12.3, 8.2); plant(12.3, -3.5);
+
+  /* zone labels: one per room + workspace */
+  var ws = { text: "Workspace", x: -6.5, z: 8.5 };
+  addZone(ws.text, ws.x, ws.z);
+  f.rooms.forEach(function (r) { addZone(r.name, r.x + r.w / 2, r.z + 0.55); });
+
+  /* re-apply desk screen glow */
+  list().forEach(function (e) { var d = deskOf(e); if (d && screens[d.id]) screens[d.id].emissive.setHex(e.status === "working" ? 0x2a6bd1 : 0x000000); });
+  refreshEditTargets();
+}
+function addZone(text, x, z) {
+  var el = document.createElement("div"); el.className = "zone"; el.textContent = text;
+  labelsEl.appendChild(el); zoneTags.push({ el: el, v: new T.Vector3(x, 0.05, z) });
+}
+function refreshEditTargets() {
+  deskPick = []; roomPick = [];
+  if (!editMode || !curFloor()) return;
+  var f = curFloor();
+  world.traverse(function (o) {
+    if (!o.isMesh) return;
+    if (o.userData.deskId) deskPick.push(o);
+    if (o.userData.roomId) roomPick.push(o);
+  });
+}
+/* ---------- Cartoon character ---------- */
+var SKIN = [0xf1c7a0, 0xd9a577, 0xb97d52, 0x8f5a38, 0x6b4228];
+var HAIRC = [0x15151a, 0x241a16, 0x3a2a20, 0x5a3d2b];
+var PANTS = [0x28324a, 0x2f2f36, 0x4a4030];
+function randLook() { return { skin: Math.floor(Math.random() * 4), hair: Math.floor(Math.random() * 4), hc: Math.floor(Math.random() * 4), pants: Math.floor(Math.random() * 3) }; }
+
+function makeAvatar(e) {
+  var L = e.look || { skin: 0, hair: 0, hc: 0, pants: 0 };
+  var mats = [];
+  function mk(c, o) { var m = new T.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.6, transparent: true }, o || {})); mats.push(m); return m; }
+  function mesh(geo, mat, x, y, z, parent, noShadow) {
+    var m = new T.Mesh(geo, mat); m.position.set(x, y, z); if (!noShadow) m.castShadow = true; parent.add(m); return m;
+  }
+  var g = new T.Group(); g.userData.id = e.id;
+  var shirt = mk(STATUS[e.status].hex), skin = mk(SKIN[L.skin % 5]), hair = mk(HAIRC[L.hc % 4], { roughness: 0.8 });
+  var pants = mk(PANTS[L.pants % 3]), shoe = mk(0x15181e), eye = mk(0x101216, { roughness: 0.3 });
+  var white = mk(0xffffff, { emissive: 0x666666 }), blush = mk(0xf28d96), mouth = mk(0x8a3a3a), cupMat = mk(0xf4f1ea);
+
+  mesh(new T.CylinderGeometry(0.25, 0.3, 0.58, 20), shirt, 0, 0.83, 0, g);
+  mesh(new T.CylinderGeometry(0.29, 0.29, 0.14, 20), pants, 0, 0.6, 0, g);
+  mesh(new T.BoxGeometry(0.1, 0.12, 0.02), white, 0.12, 0.95, 0.265, g, true);
+
+  function limb(side, isArm) {
+    var p = new T.Group();
+    if (isArm) {
+      p.position.set(side * 0.34, 1.06, 0);
+      mesh(new T.SphereGeometry(0.095, 12, 10), shirt, 0, 0, 0, p);
+      mesh(new T.CylinderGeometry(0.075, 0.07, 0.44, 12), shirt, 0, -0.22, 0, p);
+      mesh(new T.SphereGeometry(0.085, 12, 10), skin, 0, -0.5, 0, p);
+    } else {
+      p.position.set(side * 0.13, 0.55, 0);
+      mesh(new T.CylinderGeometry(0.105, 0.1, 0.52, 12), pants, 0, -0.26, 0, p);
+      mesh(new T.BoxGeometry(0.17, 0.1, 0.3), shoe, 0, -0.52, 0.06, p);
+    }
+    g.add(p); return p;
+  }
+  e.armL = limb(-1, true); e.armR = limb(1, true); e.legL = limb(-1, false); e.legR = limb(1, false);
+  e.cup = mesh(new T.CylinderGeometry(0.06, 0.05, 0.13, 10), cupMat, 0, -0.55, 0.1, e.armR);
+
+  var head = new T.Group(); head.position.y = 1.5; g.add(head); e.head = head;
+  mesh(new T.SphereGeometry(0.36, 24, 18), skin, 0, 0, 0, head);
+  mesh(new T.SphereGeometry(0.06, 10, 8), skin, -0.355, 0, 0, head); mesh(new T.SphereGeometry(0.06, 10, 8), skin, 0.355, 0, 0, head);
+  [-1, 1].forEach(function (s) {
+    var ey = mesh(new T.SphereGeometry(0.05, 12, 10), eye, s * 0.13, 0.04, 0.322, head, true); ey.scale.set(1, 1.35, 0.6);
+    mesh(new T.SphereGeometry(0.016, 8, 6), white, s * 0.13 + 0.015, 0.065, 0.342, head, true);
+    var bl = mesh(new T.SphereGeometry(0.05, 10, 8), blush, s * 0.2, -0.07, 0.285, head, true); bl.scale.set(1.2, 0.65, 0.3);
+  });
+  var sm = mesh(new T.TorusGeometry(0.07, 0.012, 6, 14, Math.PI), mouth, 0, -0.1, 0.322, head, true); sm.rotation.z = Math.PI;
+  var cap = mesh(new T.SphereGeometry(0.385, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.52), hair, 0, 0.02, -0.01, head); cap.rotation.x = -0.28;
+  if (L.hair === 1) { var back = mesh(new T.SphereGeometry(0.3, 14, 12), hair, 0, -0.2, -0.2, head); back.scale.set(1.15, 1.5, 0.75); }
+  if (L.hair === 2) mesh(new T.SphereGeometry(0.14, 12, 10), hair, 0, 0.44, -0.14, head);
+  if (L.hair === 3) { var fr = mesh(new T.SphereGeometry(0.16, 12, 10), hair, 0.17, 0.27, 0.27, head); fr.scale.set(1.3, 0.7, 0.8); }
+
+  e.mats = mats; e.bodyMat = shirt; e.group = g;
+  var disc = new T.Mesh(new T.CircleGeometry(0.58, 24), new T.MeshBasicMaterial({ color: STATUS[e.status].hex, transparent: true, opacity: 0.4 }));
+  disc.rotation.x = -Math.PI / 2; disc.position.y = 0.03;
+  if (e.disc) scene.remove(e.disc);
+  scene.add(disc); e.disc = disc; scene.add(g);
+  e.targetColor = new T.Color(STATUS[e.status].hex);
+}
+function rebuildLook(e) {
+  var vis = e.group.visible, rot = e.group.rotation.y;
+  scene.remove(e.group); makeAvatar(e); e.group.rotation.y = rot; e.group.visible = vis; e.disc.visible = vis;
+}
+
+function initScene() {
+  scene = new T.Scene(); scene.background = new T.Color(0x0b1118); scene.fog = new T.Fog(0x0b1118, 55, 120);
+  camera = new T.PerspectiveCamera(32, 1, 0.5, 220);
+  renderer = new T.WebGLRenderer({ canvas: canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+  scene.add(new T.HemisphereLight(0xbcd2ff, 0x1a2230, 0.85));
+  var sun = new T.DirectionalLight(0xfff2dc, 0.9); sun.position.set(14, 26, 12); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  var sc = sun.shadow.camera; sc.left = -22; sc.right = 22; sc.top = 22; sc.bottom = -22; sc.near = 1; sc.far = 80;
+  scene.add(sun);
+  ray = new T.Raycaster(); mouse = new T.Vector2();
+  ringMesh = new T.Mesh(new T.RingGeometry(0.66, 0.8, 40), new T.MeshBasicMaterial({ color: 0x7fa6ff, transparent: true, opacity: 0.95, side: T.DoubleSide }));
+  ringMesh.rotation.x = -Math.PI / 2; ringMesh.position.y = 0.05; ringMesh.visible = false; scene.add(ringMesh);
+  sceneOk = true; buildWorld(); resize();
+}
+
+function resize() {
+  if (!sceneOk) return;
+  var r = stage.getBoundingClientRect(); W = Math.max(1, r.width); H = Math.max(1, r.height);
+  renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix();
+  var a = W / H; cam.base = a < 0.9 ? 46 : a < 1.3 ? 40 : 33;
+}
+var tmpV;
+function project(x, y, z, el) {
+  tmpV = tmpV || new T.Vector3(); tmpV.set(x, y, z).project(camera);
+  el.style.visibility = tmpV.z > 1 ? "hidden" : "visible";
+  el.style.transform = "translate(" + ((tmpV.x * 0.5 + 0.5) * W).toFixed(1) + "px," + ((-tmpV.y * 0.5 + 0.5) * H).toFixed(1) + "px) translate(-50%,-100%)";
+}
+function projectZone(zt) {
+  tmpV = tmpV || new T.Vector3(); tmpV.copy(zt.v).project(camera);
+  zt.el.style.transform = "translate(" + ((tmpV.x * 0.5 + 0.5) * W).toFixed(1) + "px," + ((-tmpV.y * 0.5 + 0.5) * H).toFixed(1) + "px) translate(-50%,-50%)";
+}
+function faceAt(e) {
+  var l = locOf(e);
+  if (l.kind === "desk") return Math.PI;
+  var c = l.pt, f = floorOf(e);
+  if (f && e.seatKey != null) {
+    var pr = e.seatKey.split(":");
+    var r = f.rooms.filter(function (x) { return x.id === pr[0]; })[0];
+    if (r) c = { x: r.x + r.w / 2, z: r.z + r.d / 2 };
+  }
+  return Math.atan2(c.x - e.x, c.z - e.z);
+}
+function angDiff(a, b) { var d = (b - a) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; }
+function pose(e, dt, now, moving) {
+  var kind = locOf(e).kind, id = e.idn, t = { aL: 0, aR: 0, lL: 0, lR: 0, hd: 0, hy: 0 };
+  if (moving) {
+    e.phase = (e.phase || 0) + dt * 10; var s = Math.sin(e.phase);
+    t.lL = s * 0.75; t.lR = -s * 0.75; t.aL = -s * 0.65; t.aR = s * 0.65;
+  } else if (kind === "desk" && e.status === "working") {
+    t.lL = t.lR = -1.45; t.aL = -1.2 + sn(now * 0.017 + id) * 0.09; t.aR = -1.2 + sn(now * 0.021 + id * 2) * 0.09; t.hd = 0.12 + sn(now * 0.003 + id) * 0.03;
+  } else if (kind === "meeting") {
+    t.lL = t.lR = -1.45; t.aL = -0.55; t.aR = -0.55 + (sn(now * 0.0022 + id * 3) > 0.6 ? -0.9 : 0);
+    t.hd = sn(now * 0.0016 + id) * 0.08; t.hy = sn(now * 0.0011 + id * 2) * 0.25;
+  } else if (kind === "break") {
+    t.aR = -2.0 + sn(now * 0.002 + id) * 0.1; t.aL = 0.1; t.hy = sn(now * 0.0012 + id) * 0.3;
+  } else {
+    t.aL = 0.04 + sn(now * 0.002 + id) * 0.03; t.aR = -0.04 - sn(now * 0.002 + id) * 0.03; t.hy = sn(now * 0.001 + id) * 0.2;
+  }
+  var k = reduceMotion ? 1 : Math.min(1, dt * 10);
+  e.armL.rotation.x += (t.aL - e.armL.rotation.x) * k; e.armR.rotation.x += (t.aR - e.armR.rotation.x) * k;
+  e.legL.rotation.x += (t.lL - e.legL.rotation.x) * k; e.legR.rotation.x += (t.lR - e.legR.rotation.x) * k;
+  e.head.rotation.x += (t.hd - e.head.rotation.x) * k; e.head.rotation.y += (t.hy - e.head.rotation.y) * k;
+  e.cup.visible = e.status === "break";
+}
+
+var last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  var dt = Math.min(0.05, (now - last) / 1000); last = now;
+  var k = reduceMotion ? 1 : 1 - Math.pow(0.001, dt);
+  cam.az += (cam.tAz - cam.az) * k; cam.phi += (cam.tPhi - cam.phi) * k; cam.zoom += (cam.tZoom - cam.zoom) * k;
+  var d = cam.base * cam.zoom, sp = Math.sin(cam.phi);
+  camera.position.set(d * sp * Math.sin(cam.az), d * Math.cos(cam.phi), d * sp * Math.cos(cam.az));
+  camera.lookAt(0, 0, 0.5);
+
+  list().forEach(function (e) {
+    var tag = tags[e.id];
+    if (!e.group) return;
+    var here = onCurFloor(e);
+    var gone = e.status === "absent" && !e.route.length;
+    if (!here || gone) {
+      e.group.visible = false; e.disc.visible = false;
+      if (tag) tag.style.visibility = "hidden";
+      return;
+    }
+    e.group.visible = true; e.disc.visible = true;
+    var moving = false;
+    if (e.route.length) {
+      var p = e.route[0], dx = p.x - e.x, dz = p.z - e.z, dist = Math.hypot(dx, dz), step = 3.6 * dt;
+      if (dist <= step) { e.x = p.x; e.z = p.z; e.route.shift(); }
+      else { e.x += dx / dist * step; e.z += dz / dist * step; e.faceTo = Math.atan2(dx, dz); }
+      moving = true;
+    } else e.faceTo = faceAt(e);
+    e.rot += angDiff(e.rot, e.faceTo) * Math.min(1, dt * 9);
+    var g = e.group; g.rotation.y = e.rot;
+    g.position.set(e.x, moving ? Math.abs(Math.sin((e.phase || 0))) * 0.08 : 0, e.z);
+    e.disc.position.x = e.x; e.disc.position.z = e.z;
+    pose(e, dt, now, moving);
+    e.bodyMat.color.lerp(e.targetColor, 0.12);
+    e.disc.material.color.lerp(e.targetColor, 0.12);
+    var targetOp = e.status === "away" ? 0.4 : 1;
+    e.opacity += (targetOp - e.opacity) * 0.12;
+    for (var i = 0; i < e.mats.length; i++) e.mats[i].opacity = e.opacity;
+    e.disc.material.opacity = 0.18 + 0.22 * e.opacity;
+    if (tag) project(e.x, 2.2, e.z, tag);
+  });
+
+  var s = emps[selectedId];
+  if (s && onCurFloor(s) && !(s.status === "absent" && !s.route.length)) {
+    ringMesh.visible = true;
+    ringMesh.position.x = s.x; ringMesh.position.z = s.z;
+    var pu = reduceMotion ? 1 : 1 + Math.sin(now * 0.005) * 0.08; ringMesh.scale.set(pu, pu, pu);
+  } else ringMesh.visible = false;
+  zoneTags.forEach(projectZone);
+  renderer.render(scene, camera);
+}
+/* ---------- Input ---------- */
+var ptrs = new Map(), drag = null, pinch0 = 0, zoom0 = 1;
+var planeXZ = null, dragHint = null;
+
+function setMouse(ev) {
+  var r = canvas.getBoundingClientRect();
+  mouse.x = ((ev.clientX - r.left) / r.width) * 2 - 1; mouse.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+  ray.setFromCamera(mouse, camera);
+}
+function pickAvatar(ev) {
+  setMouse(ev);
+  var objs = list().filter(function (e) { return e.group && e.group.visible; }).map(function (e) { return e.group; });
+  var h = ray.intersectObjects(objs, true)[0];
+  if (!h) return null;
+  var o = h.object; while (o && o.userData.id === undefined) o = o.parent;
+  return o ? o.userData.id : null;
+}
+function pickEdit(ev) {
+  if (!editMode) return null;
+  setMouse(ev);
+  var objs = deskPick.concat(roomPick);
+  var h = ray.intersectObjects(objs, false)[0];
+  if (!h) return null;
+  return { deskId: h.object.userData.deskId || null, roomId: h.object.userData.roomId || null };
+}
+function floorPoint(ev) {
+  setMouse(ev);
+  planeXZ = planeXZ || new T.Plane(new T.Vector3(0, 1, 0), 0);
+  var pt = new T.Vector3();
+  return ray.ray.intersectPlane(planeXZ, pt) ? pt : null;
+}
+
+canvas.addEventListener("pointerdown", function (ev) {
+  try { canvas.setPointerCapture(ev.pointerId); } catch (x) {}
+  ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  drag = { moved: 0, t: performance.now() };
+  if (ptrs.size === 2) {
+    var v = Array.from(ptrs.values()); pinch0 = Math.hypot(v[0].x - v[1].x, v[0].y - v[1].y); zoom0 = cam.tZoom; drag.moved = 99;
+    endDragEdit(false); return;
+  }
+  /* start dragging a desk/room when in edit mode and no avatar under pointer */
+  if (editMode && !pickAvatar(ev)) {
+    var hitE = pickEdit(ev);
+    if (hitE && (hitE.deskId || hitE.roomId)) startDragEdit(ev, hitE);
+  }
+});
+canvas.addEventListener("pointermove", function (ev) {
+  if (!ptrs.has(ev.pointerId)) {
+    if (!dragObj) canvas.style.cursor = (pickAvatar(ev) || (editMode && pickEdit(ev))) ? "pointer" : "";
+    return;
+  }
+  var prev = ptrs.get(ev.pointerId), dx = ev.clientX - prev.x, dy = ev.clientY - prev.y;
+  ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (ptrs.size === 2) {
+    var v = Array.from(ptrs.values()), dist = Math.hypot(v[0].x - v[1].x, v[0].y - v[1].y);
+    if (pinch0 > 0) cam.tZoom = clamp(zoom0 * pinch0 / dist, 0.5, 1.4);
+  } else if (dragObj) {
+    drag.moved += Math.abs(dx) + Math.abs(dy);
+    moveDragEdit(ev);
+  } else if (drag) {
+    drag.moved += Math.abs(dx) + Math.abs(dy);
+    if (drag.moved > 6) { cam.tAz -= dx * 0.008; cam.tPhi = clamp(cam.tPhi - dy * 0.005, 0.3, 1.25); }
+  }
+});
+canvas.addEventListener("pointerup", function (ev) {
+  var wasDragObj = dragObj;
+  if (wasDragObj) endDragEdit(drag && drag.moved > 6);
+  else if (drag && drag.moved <= 6 && ptrs.size === 1 && performance.now() - drag.t < 500) {
+    var id = pickAvatar(ev);
+    if (id !== null) select(id);
+    else if (editMode) {
+      var h = pickEdit(ev);
+      if (h) selectEditTarget(h);
+      else clearSel();                 /* clicked empty floor: deselect */
+    } else clearSel();                 /* clicked empty floor: deselect */
+  }
+  ptrs.delete(ev.pointerId); if (!ptrs.size) drag = null;
+});
+canvas.addEventListener("pointercancel", function (ev) { ptrs.delete(ev.pointerId); if (!ptrs.size) drag = null; });
+canvas.addEventListener("wheel", function (ev) { ev.preventDefault(); cam.tZoom = clamp(cam.tZoom * Math.exp(ev.deltaY * 0.001), 0.5, 1.4); }, { passive: false });
+$("#rotL").addEventListener("click", function () { cam.tAz -= Math.PI / 6; });
+$("#rotR").addEventListener("click", function () { cam.tAz += Math.PI / 6; });
+$("#reset").addEventListener("click", function () { cam.tAz = 0.62; cam.tPhi = 0.92; cam.tZoom = 1; });
+
+/* ---------- Edit-mode drag ---------- */
+function startDragEdit(ev, hitE) {
+  var f = curFloor(), src = null, kind = null, id = null;
+  if (hitE.deskId) { src = f.desks.filter(function (d) { return d.id === hitE.deskId; })[0]; kind = "desk"; id = hitE.deskId; }
+  else { src = f.rooms.filter(function (r) { return r.id === hitE.roomId; })[0]; kind = "room"; id = hitE.roomId; }
+  if (!src) return;
+  var p0 = floorPoint(ev); if (!p0) return;
+  selectEditTarget(hitE);
+  /* snapshot original mesh positions so we can shift them as a group */
+  var meshes = [];
+  world.traverse(function (o) {
+    if (!o.isMesh) return;
+    if (kind === "desk" && o.userData.deskId === id) meshes.push(o);
+    if (kind === "room" && o.userData.roomId === id) meshes.push(o);
+  });
+  meshes.forEach(function (m) { m.userData._ox = m.position.x; m.userData._oz = m.position.z; });
+  dragObj = { kind: kind, id: id, meshes: meshes, srcX: src.x, srcZ: src.z,
+    ox: src.x - p0.x, oz: src.z - p0.z, valid: true, x: src.x, z: src.z, moved: false };
+  drag.moved = 0;
+  canvas.style.cursor = "grabbing";
+}
+function moveDragEdit(ev) {
+  var p = floorPoint(ev); if (!p || !dragObj) return;
+  var f = curFloor();
+  var cand = { x: snap(p.x + dragObj.ox), z: snap(p.z + dragObj.oz) };
+  var ok = dragObj.kind === "desk" ? deskValid(f, cand, dragObj.id) : roomValid(f, cand, dragObj.id);
+  dragObj.x = cand.x; dragObj.z = cand.z; dragObj.valid = ok; dragObj.moved = true;
+  var dx = cand.x - dragObj.srcX, dz = cand.z - dragObj.srcZ;
+  dragObj.meshes.forEach(function (m) { m.position.x = m.userData._ox + dx; m.position.z = m.userData._oz + dz; });
+  applyTint(dragObj, ok);
+}
+function applyTint(d, ok) {
+  d.meshes.forEach(function (m) {
+    if (m.material && m.material.emissive && m.userData._glow === undefined) m.userData._glow = m.material.emissive.getHex();
+    if (m.material && m.material.emissive) m.material.emissive.setHex(ok ? (m.userData._glow || 0) : 0x551111);
+  });
+}
+function endDragEdit(commit) {
+  if (!dragObj) return;
+  var d = dragObj; dragObj = null;
+  canvas.style.cursor = "";
+  if (commit && d.moved && d.valid && (d.x !== d.srcX || d.z !== d.srcZ)) {
+    putLayout(function (l) {
+      var f = l.floors.filter(function (x) { return x.id === floorId; })[0]; if (!f) return;
+      var t = (d.kind === "desk" ? f.desks : f.rooms).filter(function (x) { return x.id === d.id; })[0];
+      if (t) { t.x = d.x; t.z = d.z; }
+    });
+  }
+  buildWorld(); rebuildSeats(); renderAll();  /* rebuild reflects new or snapped-back position */
+}
+function selectEditTarget(h) {
+  var f = curFloor(); if (!f) return;
+  selectedId = null;
+  if (h.deskId) { editSel = { kind: "desk", id: h.deskId }; }
+  else if (h.roomId) { editSel = { kind: "room", id: h.roomId }; }
+  renderAll();
+}
+var editSel = null;   /* {kind,id} highlighted in layout editor */
+/* ---------- Panel rendering ---------- */
+function counts() {
+  var c = { working: 0, meeting: 0, break: 0, away: 0, absent: 0 };
+  list().forEach(function (e) { c[e.status]++; });
+  return c;
+}
+function renderKPIs() {
+  var c = counts(), all = list(), n = all.length, present = n - c.absent;
+  $("#tiles").innerHTML = ORDER.map(function (k) {
+    return '<button type="button" class="tile" data-status="' + k + '" aria-pressed="' + (rosterFilter === k) +
+      '" style="--c:' + STATUS[k].css + '"><b>' + c[k] + "</b><span>" + TILE_LABEL[k] + "</span></button>";
+  }).join("");
+  $("#presentTxt").textContent = n ? present + " staff working" : "";
+  $("#attTxt").textContent = present + " / " + n;
+  $("#attBar").style.width = (n ? present / n * 100 : 0) + "%";
+  var done = 0, total = 0;
+  all.forEach(function (e) { e.tasks.forEach(function (t) { total++; if (t.done) done++; }); });
+  $("#taskTxt").textContent = done + " / " + total;
+  $("#taskBar").style.width = (total ? done / total * 100 : 0) + "%";
+  $("#incomePerSec").textContent = (present * gameState.incomePerEmployee).toLocaleString();
+  $("#dailyExp").textContent = (gameState.rent + gameState.utilities).toLocaleString();
+}
+function curTask(e) {
+  if (e.status === "absent") return "Not in the office";
+  if (e.status === "meeting") return "In a meeting";
+  if (e.status === "break") return "On a break in the pantry";
+  if (e.status === "away") return "Away from the desk";
+  var o = e.tasks.filter(function (t) { return !t.done; })[0];
+  return o ? o.t : (e.tasks.length ? "All tasks done for today" : "Working (no tasks listed)");
+}
+function deskLabel(e) {
+  var f = floorOf(e), d = deskOf(e);
+  if (!f) return "--";
+  if (!d) return f.name + " · no desk";
+  var idx = f.desks.indexOf(d) + 1;
+  return f.name + " · Desk " + idx;
+}
+function renderDetail() {
+  var el = $("#detail"), e = emps[selectedId];
+  if (!e) {
+    var msg = !loaded ? "Loading the team..." : dbProblem ? dbProblem :
+      !list().length ? (store.canEdit ? "Your office is empty. Add your first employee in the Team section below." : "No employee to show yet.")
+      : "No one is selected. Click a person in the 3D view or the Team list.";
+    el.innerHTML = '<h2><span>Selected</span></h2><p class="muted" style="margin:0">' + esc(msg) + "</p>";
+    return;
+  }
+  var st = STATUS[e.status], done = e.tasks.filter(function (t) { return t.done; }).length;
+  var logs = e.log.filter(function (l) { return l.t; }).slice(-5).reverse();
+  var who = store.canEdit
+    ? '<div style="flex:1;min-width:0"><div class="fld"><label for="fName">Name</label><input type="text" id="fName" data-field="name" maxlength="60" value="' + esc(e.name) + '"></div>' +
+      '<div class="fld" style="margin:0"><label for="fRole">Role</label><input type="text" id="fRole" data-field="role" maxlength="60" value="' + esc(e.role) + '"></div></div>'
+    : '<div><h3>' + esc(e.name) + '</h3><div class="role">' + esc(e.role || "Team member") + "</div></div>";
+  var seg = store.canEdit ? '<div class="seg" role="group" aria-label="Set status">' + ORDER.map(function (k) {
+    return '<button type="button" data-act="status" data-v="' + k + '" style="--c:' + STATUS[k].css + '" aria-pressed="' + (e.status === k) + '"><i class="dot" style="--c:' + STATUS[k].css + '"></i>' + STATUS[k].label + "</button>";
+  }).join("") + "</div>" : "";
+  /* floor move control */
+  var floorCtl = "";
+  if (store.canEdit && layout && layout.floors.length > 1) {
+    floorCtl = '<div class="fld" style="margin-top:10px"><label for="fFloor">Floor</label><select id="fFloor" data-field="floorId">' +
+      layout.floors.map(function (f) {
+        return '<option value="' + esc(f.id) + '"' + (f.id === e.floorId ? " selected" : "") + ">" + esc(f.name) + "</option>";
+      }).join("") + "</select></div>";
+  }
+  var dayKeys = Object.keys(e.days || {}).sort().reverse().slice(0, 7);
+  var hist = dayKeys.length ? '<div class="sub-h">Attendance (last ' + dayKeys.length + ' days)</div><ul class="tl">' +
+    dayKeys.map(function (k) {
+      var r = e.days[k] || {};
+      return "<li><time>" + k.slice(5) + "</time><span>" + (r.in ? fmt(r.in) : "--:--") + " &rarr; " + (r.out ? fmt(r.out) : (k === new Date().toISOString().slice(0, 10) && e.status !== "absent" ? "now" : "--:--")) + "</span></li>";
+    }).join("") + "</ul>" : "";
+  el.innerHTML =
+    '<h2><span>Selected</span><span class="chip" style="--c:' + st.css + '"><i></i>' + st.label + "</span></h2>" +
+    '<div class="who">' + who + "</div>" + seg + floorCtl +
+    '<div class="now"><small>Current</small>' + esc(curTask(e)) + "</div>" +
+    '<div class="facts"><div>Location<b>' + esc(deskLabel(e)) + "</b></div><div>Checked in<b>" + (e.checkIn ? fmt(e.checkIn) : "--:--") + "</b></div>" +
+    "<div>Tasks done<b>" + done + " / " + e.tasks.length + "</b></div><div>Floor<b>" + esc((floorOf(e) || {}).name || "--") + "</b></div></div>" +
+    '<div class="sub-h">Tasks today</div><ul class="tasks">' + (e.tasks.length ? e.tasks.map(function (t, i) {
+      var box = store.canEdit ? '<button type="button" class="ck" data-act="toggle" data-i="' + i + '" aria-label="Mark ' + (t.done ? "not done" : "done") + '"></button>' : '<span class="ck"></span>';
+      return '<li class="' + (t.done ? "done" : "") + '">' + box + '<span class="tt">' + esc(t.t) + "</span>" +
+        (store.canEdit ? '<button type="button" class="x" data-act="delTask" data-i="' + i + '" aria-label="Delete task">&times;</button>' : "") + "</li>";
+    }).join("") : '<li class="muted">No tasks yet.</li>') + "</ul>" +
+    (store.canEdit ? '<div class="addrow"><input type="text" id="taskIn" maxlength="120" placeholder="Add a task and press Enter"><button class="btn" type="button" data-act="addTask">Add</button></div>' : "") +
+    '<div class="sub-h">Activity</div><ul class="tl">' + (logs.length ? logs.map(function (l) {
+      return "<li><time>" + fmt(l.t) + "</time><span>" + esc(l.text) + "</span></li>";
+    }).join("") : "<li><time>--:--</time><span>No activity yet</span></li>") + "</ul>" + hist +
+    (store.canEdit ? '<div class="actions">' +
+      '<button class="btn" type="button" data-act="look">Change look</button>' +
+      '<button class="btn" type="button" data-act="goFloor">Show on floor</button>' +
+      '<button class="btn danger" type="button" data-act="remove">' + (arm && arm.kind === "emp" && arm.id === e.id ? "Click again to fire" : "Fire employee") + "</button></div>" : "");
+}
+function renderTeam() {
+  var all = list(), el = $("#team");
+  if (rosterQuery) {
+    var q = rosterQuery.toLowerCase();
+    all = all.filter(function (e) { return (e.name + " " + (e.role || "")).toLowerCase().indexOf(q) >= 0; });
+  }
+  if (rosterFilter) all = all.filter(function (e) { return e.status === rosterFilter; });
+  var total = list().length;
+  var head = '<h2><span>Staff</span><span>' + total + " employees" +
+    (store.canEdit ? ' <button class="btn" type="button" data-act="showAdd" style="margin-left:6px">Hire</button>' : "") +
+    (total ? ' <button class="btn" type="button" data-act="exportCsv" style="margin-left:6px">Export CSV</button>' : "") + "</span></h2>";
+  var search = total > 2 ? '<div class="fld search"><label for="rosterQ">Search</label><input type="text" id="rosterQ" placeholder="Name or role" value="' + esc(rosterQuery) + '"></div>' : "";
+  var filterNote = rosterFilter ? '<p class="gap-note">Filtered: ' + TILE_LABEL[rosterFilter] + ' <button class="btn" type="button" data-act="clearFilter" style="padding:2px 8px">Clear</button></p>' : "";
+  var form = store.canEdit && adding ? '<div class="addbox"><div class="fld" style="margin:0"><label for="newName">Name</label><input type="text" id="newName" maxlength="60" placeholder="e.g. Sokha Chan"></div>' +
+    '<div class="fld" style="margin:0"><label for="newRole">Role</label><input type="text" id="newRole" maxlength="60" placeholder="e.g. Accountant"></div>' +
+    '<div class="addrow" style="margin:0"><button class="btn pri" type="button" data-act="addEmp">Hire Employee</button><button class="btn" type="button" data-act="cancelAdd">Cancel</button></div></div>' : "";
+  var rows = list().length ? (all.length ? '<ul class="roster">' + all.map(function (e) {
+    var st = STATUS[e.status];
+    return '<li><button type="button" data-id="' + esc(e.id) + '" aria-pressed="' + (e.id === selectedId) + '"><span class="dot" style="--c:' + st.css + '"></span>' +
+      '<span class="nm"><b>' + esc(e.name) + "</b><small>" + esc(e.role || "Team member") + " &middot; " + esc(deskLabel(e)) + '</small></span><span class="st">' + st.label + "</span></button></li>";
+  }).join("") + "</ul>" : '<p class="muted" style="margin:0">No one matches.</p>') :
+    '<p class="muted" style="margin:0">' + esc(!loaded ? "Loading the team..." : dbProblem ? dbProblem : store.canEdit ? "Your office is empty. Add your first person or load a sample team." : "The manager has not added anyone yet.") +
+    (store.canEdit && loaded && !dbProblem ? ' <button class="btn" type="button" data-act="sample" style="margin-left:6px">Load sample team</button>' : "") + "</p>";
+  el.innerHTML = head + search + filterNote + form + rows;
+}
+/* ---------- Layout editor ---------- */
+function renderLayout() {
+  var el = $("#layoutSec");
+  if (!layout) { el.hidden = true; return; }
+  if (!store.canEdit || !editMode) { el.hidden = true; return; }
+  el.hidden = false;
+  var f = curFloor();
+  var floorRows = layout.floors.map(function (fl) {
+    var n = list().filter(function (e) { return e.floorId === fl.id; }).length;
+    return '<li' + (fl.id === f.id ? ' aria-current="true"' : "") + '>' +
+      '<button type="button" class="lmain" data-act="goFloorTab" data-id="' + esc(fl.id) + '"><b>' + esc(fl.name) + "</b><small>" + n + " people &middot; " + fl.desks.length + " desks &middot; " + fl.rooms.length + " rooms</small></button>" +
+      '<span class="lrow-ctl">' +
+      '<button class="ibtn" type="button" data-act="renFloor" data-id="' + esc(fl.id) + '" aria-label="Rename ' + esc(fl.name) + '">Aa</button>' +
+      '<button class="ibtn x" type="button" data-act="delFloor" data-id="' + esc(fl.id) + '" aria-label="Delete ' + esc(fl.name) + '">' + (arm && arm.kind === "floor" && arm.id === fl.id ? "?" : "&times;") + "</button>" +
+      "</span></li>";
+  }).join("");
+
+  var deskRows = f.desks.map(function (d, i) {
+    var occ = list().filter(function (e) { return e.deskId === d.id && e.floorId === f.id; })[0];
+    return '<li' + (editSel && editSel.kind === "desk" && editSel.id === d.id ? ' aria-current="true"' : "") + '>' +
+      '<button type="button" class="lmain" data-act="selDesk" data-id="' + esc(d.id) + '"><b>Desk ' + (i + 1) + (occ ? " &middot; " + esc(occ.first) : " &middot; free") + "</b><small>x " + d.x + " &middot; z " + d.z + "</small></button>" +
+      '<span class="lrow-ctl">' +
+      '<button class="ibtn" type="button" data-act="nudgeDesk" data-id="' + esc(d.id) + '" data-dx="-0.5" aria-label="Move left">&larr;</button>' +
+      '<button class="ibtn" type="button" data-act="nudgeDesk" data-id="' + esc(d.id) + '" data-dx="0.5" aria-label="Move right">&rarr;</button>' +
+      '<button class="ibtn" type="button" data-act="nudgeDesk" data-id="' + esc(d.id) + '" data-dz="-0.5" aria-label="Move up">&uarr;</button>' +
+      '<button class="ibtn" type="button" data-act="nudgeDesk" data-id="' + esc(d.id) + '" data-dz="0.5" aria-label="Move down">&darr;</button>' +
+      '<button class="ibtn x" type="button" data-act="delDesk" data-id="' + esc(d.id) + '" aria-label="Delete desk">' + (arm && arm.kind === "desk" && arm.id === d.id ? "?" : "&times;") + "</button>" +
+      "</span></li>";
+  }).join("");
+
+  var roomRows = f.rooms.map(function (r) {
+    var users = list().filter(function (e) {
+      if (e.floorId !== f.id || e.seatKey == null) return false;
+      return e.seatKey.split(":")[0] === r.id;
+    });
+    return '<li' + (editSel && editSel.kind === "room" && editSel.id === r.id ? ' aria-current="true"' : "") + '>' +
+      '<div class="lmain" style="cursor:default"><b>' + esc(r.name) + "</b><small>" + ROOM_TYPES[r.type] + " &middot; " + r.w + "&times;" + r.d + (users.length ? " &middot; " + users.length + " inside" : "") + "</small>" +
+      '<span class="row2" style="margin-top:4px"><select data-act="roomType" data-id="' + esc(r.id) + '" aria-label="Room type">' +
+      Object.keys(ROOM_TYPES).map(function (t) { return '<option value="' + t + '"' + (t === r.type ? " selected" : "") + ">" + ROOM_TYPES[t] + "</option>"; }).join("") +
+      '</select><input type="text" data-act="roomName" data-id="' + esc(r.id) + '" value="' + esc(r.name) + '" maxlength="30" aria-label="Room name" style="margin:0"></span>' +
+      '<span class="row2" style="margin-top:4px"><button class="ibtn" type="button" data-act="roomSize" data-id="' + esc(r.id) + '" data-p="w" data-v="-0.5" style="width:auto" aria-label="Narrower">W-</button>' +
+      '<button class="ibtn" type="button" data-act="roomSize" data-id="' + esc(r.id) + '" data-p="w" data-v="0.5" style="width:auto" aria-label="Wider">W+</button>' +
+      '<button class="ibtn" type="button" data-act="roomSize" data-id="' + esc(r.id) + '" data-p="d" data-v="-0.5" style="width:auto" aria-label="Shallower">D-</button>' +
+      '<button class="ibtn" type="button" data-act="roomSize" data-id="' + esc(r.id) + '" data-p="d" data-v="0.5" style="width:auto" aria-label="Deeper">D+</button></span></div>' +
+      '<span class="lrow-ctl"><button class="ibtn x" type="button" data-act="delRoom" data-id="' + esc(r.id) + '" aria-label="Delete room">' + (arm && arm.kind === "room" && arm.id === r.id ? "?" : "&times;") + "</button></span></li>";
+  }).join("");
+
+  el.innerHTML =
+    '<h2><span>Layout editor</span><span class="mini">drag desks/rooms in 3D</span></h2>' +
+    '<div class="sub-h">Floors (' + layout.floors.length + "/" + MAX_FLOORS + ")</div>" +
+    '<ul class="lrows">' + floorRows + "</ul>" +
+    '<div class="addrow"><button class="btn" type="button" data-act="addFloor"' + (layout.floors.length >= MAX_FLOORS ? " disabled" : "") + ">Add floor</button></div>" +
+    '<div class="sub-h">' + esc(f.name) + " &middot; Desks (" + f.desks.length + ")</div>" +
+    (f.desks.length ? '<ul class="lrows">' + deskRows + "</ul>" : '<p class="gap-note">No desks.</p>') +
+    '<div class="addrow"><button class="btn" type="button" data-act="addDesk">Add desk</button></div>' +
+    '<div class="sub-h">' + esc(f.name) + " &middot; Rooms (" + f.rooms.length + "/" + MAX_ROOMS + ")</div>" +
+    (f.rooms.length ? '<ul class="lrows">' + roomRows + "</ul>" : '<p class="gap-note">No rooms.</p>') +
+    '<div class="addrow"><button class="btn" type="button" data-act="addRoom" data-v="meeting"' + (f.rooms.length >= MAX_ROOMS ? " disabled" : "") + ">+ Meeting</button>" +
+    '<button class="btn" type="button" data-act="addRoom" data-v="pantry"' + (f.rooms.length >= MAX_ROOMS ? " disabled" : "") + ">+ Pantry</button>" +
+    '<button class="btn" type="button" data-act="addRoom" data-v="reception"' + (f.rooms.length >= MAX_ROOMS ? " disabled" : "") + ">+ Reception</button></div>";
+}
+function renderFloorTabs() {
+  var el = $("#floorTabs");
+  if (!layout) { el.innerHTML = ""; return; }
+  var canAdd = store.canEdit && editMode && layout.floors.length < MAX_FLOORS;
+  el.innerHTML = layout.floors.map(function (f) {
+    var n = list().filter(function (e) { return e.floorId === f.id && e.status !== "absent"; }).length;
+    return '<button class="fbtn" type="button" role="tab" data-floor="' + esc(f.id) + '" aria-selected="' + (f.id === floorId) + '">' +
+      esc(f.name.replace(/^Floor\s/i, "F")) + "<small>" + n + " in</small></button>";
+  }).join("") + (canAdd ? '<button class="fbtn add" type="button" data-floor-add="1" title="Add floor" aria-label="Add floor">+</button>' : "");
+  var f = curFloor();
+  $("#floorSub").textContent = "Main office \u00b7 " + (f ? f.name : "");
+}
+
+/* ---------- Feed / tags / empty / badge ---------- */
+function renderFeed() {
+  var items = [];
+  list().forEach(function (e) { e.log.forEach(function (l) { if (l.t) items.push({ k: e.id + "|" + l.t, t: l.t, name: e.first, text: l.text }); }); });
+  items.sort(function (a, b) { return b.t - a.t; }); items = items.slice(0, 10);
+  var first = seenFeed === null; if (first) seenFeed = {};
+  $("#feed").innerHTML = items.length ? items.map(function (f) {
+    var fresh = !first && loaded && !seenFeed[f.k]; seenFeed[f.k] = 1;
+    return '<li class="' + (fresh ? "new" : "") + '"><time>' + fmt(f.t) + "</time><span><b>" + esc(f.name) + "</b> " + esc(f.text) + "</span></li>";
+  }).join("") : '<li style="display:block" class="muted">Changes you make will appear here.</li>';
+  $("#feedNote").textContent = items.length ? "newest first" : "";
+}
+function renderTags() {
+  list().forEach(function (e) {
+    var t = tags[e.id]; if (!t) return;
+    t.firstChild.style.background = STATUS[e.status].css;
+    t.lastChild.textContent = e.first + (e.status === "absent" ? " (not in)" : "");
+    t.classList.toggle("sel", e.id === selectedId); t.classList.toggle("off", e.status === "absent");
+    var d = deskOf(e);
+    if (d && screens[d.id]) screens[d.id].emissive.setHex(e.status === "working" ? 0x2a6bd1 : 0x000000);
+  });
+  if (layout) { var f = curFloor(); if (f) f.desks.forEach(function (d) {
+    if (screens[d.id] && !list().some(function (e) { return e.deskId === d.id && e.floorId === f.id; })) screens[d.id].emissive.setHex(0x000000);
+  }); }
+}
+function renderEmpty() {
+  var el = $("#empty"), n = list().length;
+  if (n || (!loaded && !dbProblem)) { el.hidden = true; return; }
+  el.hidden = false;
+  var sample = store.canEdit ? '<button class="btn pri" type="button" data-act="sample">Load sample team</button>' : "";
+  el.innerHTML = dbProblem ? "<b>Saved data unavailable</b><span>" + esc(dbProblem) + "</span>" :
+    "<b>The office is empty</b><span>" + (store.canEdit ? "Add employees in the Team panel, or start with a sample team." : "The manager has not added anyone yet.") + "</span>" + sample;
+}
+function renderBadge() {
+  var b = $("#roleBadge");
+  b.textContent = !loaded && store.mode === null ? "Loading" : store.canEdit ? "Manager" : "View only";
+  b.classList.toggle("on", store.canEdit);
+  var s = $("#syncBadge");
+  s.hidden = !loaded;
+  if (loaded) s.textContent = store.mode === "local" ? "Saved on device" : "Synced " + fmt(Date.now());
+  var et = $("#editToggle");
+  et.hidden = !(store.canEdit && store.mode !== null);
+  et.setAttribute("aria-pressed", editMode ? "true" : "false");
+  et.textContent = editMode ? "Done editing" : "Edit layout";
+  var rg = $("#resetGame");
+  if (rg) rg.disabled = !store.canEdit;
+  $("#hint").textContent = editMode ? "Drag a desk or room to move it \u00b7 Click empty floor to deselect" : "Drag to rotate \u00b7 Scroll to zoom \u00b7 Click a person \u00b7 Click again or Esc to deselect";
+}
+function renderMtabs() {
+  document.querySelectorAll("#mtabs button").forEach(function (b) {
+    var on = b.getAttribute("data-mtab") === (document.body.dataset.mtab || "status");
+    b.setAttribute("aria-selected", on ? "true" : "false");
+  });
+}
+function renderAll() {
+  updateGameUI();
+  var a = document.activeElement, keep = null;
+  if (a && a.id && a.tagName === "INPUT") keep = { id: a.id, v: a.value, s: a.selectionStart, e: a.selectionEnd };
+  syncScene();   /* keep 3D avatars + labels in step with the data, no reload needed */
+  renderBadge(); renderKPIs(); renderDetail(); renderTeam(); renderLayout(); renderFloorTabs(); renderFeed(); renderEmpty(); renderTags(); renderMtabs();
+  if (keep) {
+    var n = document.getElementById(keep.id);
+    if (n) { n.value = keep.v; try { n.focus(); n.setSelectionRange(keep.s, keep.e); } catch (x) {} }
+  }
+}
+function syncScene() {
+  if (!sceneOk) return;
+  var seen = {};
+  list().forEach(function (e) {
+    seen[e.id] = 1;
+    ensureTag(e.id);
+    if (!e.group) { makeAvatar(e); seedPos(e); }
+  });
+  Object.keys(tags).forEach(function (id) { if (!seen[id]) { tags[id].remove(); delete tags[id]; } });
+}
+function select(id) {
+  selectedId = selectedId === id ? null : id;   /* clicking the selected avatar deselects */
+  editSel = null; removeArm(); renderAll();
+}
+function selectOnly(id) {                       /* list clicks always select */
+  selectedId = id; editSel = null; removeArm(); renderAll();
+}
+function clearSel() {
+  if (selectedId === null && editSel === null) return;
+  selectedId = null; editSel = null; removeArm(); renderAll();
+}
+function selectOnFloor(id) {
+  var e = emps[id]; if (e && e.floorId !== floorId) goFloor(e.floorId);
+  selectOnly(id);
+}
+function goFloor(id) {
+  if (!layout || id === floorId) return;
+  if (!layout.floors.some(function (f) { return f.id === id; })) return;
+  camByFloor[floorId] = { az: cam.tAz, phi: cam.tPhi, zoom: cam.tZoom };  /* remember camera */
+  floorId = id; editSel = null;
+  var c = camByFloor[id];
+  if (c) { cam.tAz = c.az; cam.tPhi = c.phi; cam.tZoom = c.zoom; }
+  if (sceneOk) { buildWorld(); rebuildSeats(); }
+  renderAll();
+}
+var camByFloor = {};
+function removeArm() { arm = null; }
+function armSet(kind, id) {
+  if (arm && arm.kind === kind && arm.id === id) return true;  /* second click */
+  arm = { kind: kind, id: id };
+  setTimeout(function () { if (arm && arm.kind === kind && arm.id === id) { arm = null; renderAll(); } }, 4000);
+  return false;
+}
+/* ---------- Layout/floor mutation helpers ---------- */
+function withFloor(fn) { putLayout(function (l) { var f = l.floors.filter(function (x) { return x.id === floorId; })[0]; if (f) fn(f, l); }); buildWorld(); rebuildSeats(); renderAll(); }
+function addFloorNow() {
+  putLayout(function (l) { if (l.floors.length < MAX_FLOORS) l.floors.push(makeFloor("Floor " + (l.floors.length + 1))); });
+  var last = layout && layout.floors[layout.floors.length - 1];
+  buildWorld(); if (last) goFloor(last.id); else renderAll();
+  toast("Floor added.");
+}
+function syncAfterLayoutChange() { /* layout applied optimistically in putLayout */ }
+function addDeskNow() {
+  var f = curFloor(); if (!f) return;
+  var spot = findDeskSpot(f);
+  if (!spot) { toast("No free space for a desk on this floor. Move things around first."); return; }
+  var id = uid("d");
+  withFloor(function (fl) { fl.desks.push({ id: id, x: spot.x, z: spot.z }); });
+  editSel = { kind: "desk", id: id }; renderAll();
+}
+function addRoomNow(type) {
+  var f = curFloor(); if (!f || f.rooms.length >= MAX_ROOMS) return;
+  var sizes = { meeting: { w: 7.5, d: 6 }, pantry: { w: 4, d: 5 }, reception: { w: 3.2, d: 5 } };
+  var sz = sizes[type], id = uid("r");
+  /* scan the shell on the 0.5 grid for the first spot that fits */
+  var placed = null, x, z;
+  for (z = SHELL.z1 + 0.5; z + sz.d <= SHELL.z2 - 0.5 && !placed; z += 0.5)
+    for (x = SHELL.x1 + 0.5; x + sz.w <= SHELL.x2 - 0.5 && !placed; x += 0.5) {
+      var cand = { x: x, z: z, w: sz.w, d: sz.d };
+      if (roomValid(f, cand)) placed = cand;
+    }
+  if (!placed) { toast("No free space for a room on this floor."); return; }
+  withFloor(function (fl) { fl.rooms.push({ id: id, type: type, name: ROOM_TYPES[type], x: placed.x, z: placed.z, w: sz.w, d: sz.d }); });
+  editSel = { kind: "room", id: id }; renderAll();
+}
+
+/* ---------- Events: floor tabs ---------- */
+$("#floorTabs").addEventListener("click", function (ev) {
+  var b = ev.target.closest("button"); if (!b) return;
+  if (b.hasAttribute("data-floor-add")) { addFloorNow(); return; }
+  var id = b.getAttribute("data-floor"); if (id) goFloor(id);
+});
+
+/* ---------- Events: tiles (status filter) ---------- */
+$("#tiles").addEventListener("click", function (ev) {
+  var b = ev.target.closest("button[data-status]"); if (!b) return;
+  var s = b.getAttribute("data-status");
+  rosterFilter = rosterFilter === s ? null : s;
+  if (rosterFilter) setMTab("team");
+  renderAll();
+});
+
+/* ---------- Events: empty overlay ---------- */
+$("#empty").addEventListener("click", function (ev) {
+  var b = ev.target.closest("button"); if (!b) return;
+  if (b.getAttribute("data-act") === "sample") loadSample();
+});
+
+/* ---------- Events: mobile tabs ---------- */
+function setMTab(t) { document.body.dataset.mtab = t; renderMtabs(); }
+$("#mtabs").addEventListener("click", function (ev) {
+  var b = ev.target.closest("button[data-mtab]"); if (b) setMTab(b.getAttribute("data-mtab"));
+});
+setMTab("status");
+
+/* ---------- Events: team section ---------- */
+$("#team").addEventListener("click", function (ev) {
+  var b = ev.target.closest("button"); if (!b) return;
+  if (b.hasAttribute("data-id")) { selectOnFloor(b.getAttribute("data-id")); return; }
+  var act = b.getAttribute("data-act");
+  if (act === "showAdd") { adding = true; renderAll(); var n = $("#newName"); if (n) n.focus(); }
+  else if (act === "cancelAdd") { adding = false; renderAll(); }
+  else if (act === "addEmp") addEmployee($("#newName").value, $("#newRole").value);
+  else if (act === "clearFilter") { rosterFilter = null; renderAll(); }
+  else if (act === "exportCsv") exportCsv();
+  else if (act === "sample") loadSample();
+});
+$("#team").addEventListener("keydown", function (ev) {
+  if (ev.key === "Enter" && (ev.target.id === "newName" || ev.target.id === "newRole")) addEmployee($("#newName").value, $("#newRole").value);
+  if (ev.target.id === "rosterQ" && ev.key === "Escape") { rosterQuery = ""; renderAll(); }
+  /* arrow keys move between roster entries */
+  if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+    var b = ev.target.closest && ev.target.closest("button[data-id]"); if (!b) return;
+    var items = Array.prototype.slice.call(document.querySelectorAll(".roster button[data-id]"));
+    var i = items.indexOf(b); if (i < 0) return;
+    var j = clamp(i + (ev.key === "ArrowDown" ? 1 : -1), 0, items.length - 1);
+    if (items[j] && items[j] !== b) { ev.preventDefault(); items[j].focus(); }
+  }
+});
+$("#team").addEventListener("input", function (ev) {
+  if (ev.target.id === "rosterQ") { rosterQuery = ev.target.value; renderTeam(); var n = document.getElementById("rosterQ"); if (n) { n.focus(); try { n.setSelectionRange(n.value.length, n.value.length); } catch (x) {} } }
+});
+
+/* ---------- Events: detail section ---------- */
+function addTask() {
+  var e = emps[selectedId], i = $("#taskIn"); if (!e || !i) return;
+  var v = i.value.trim(); if (!v) return;
+  i.value = ""; patch(e.id, { tasks: e.tasks.concat([{ t: v.slice(0, 120), done: false }]) });
+}
+$("#detail").addEventListener("click", function (ev) {
+  var b = ev.target.closest("button[data-act]"); if (!b || !store.canEdit) return;
+  var e = emps[selectedId]; if (!e) return;
+  var act = b.getAttribute("data-act"), i = +b.getAttribute("data-i");
+  if (act === "status") setStatus(e, b.getAttribute("data-v"));
+  else if (act === "toggle") {
+    var tasks = e.tasks.map(function (t) { return { t: t.t, done: t.done }; }); tasks[i].done = !tasks[i].done;
+    var p = { tasks: tasks }; if (tasks[i].done) withLog(e, "Completed: " + tasks[i].t, p);
+    patch(e.id, p);
+  } else if (act === "delTask") patch(e.id, { tasks: e.tasks.filter(function (t, k) { return k !== i; }) });
+  else if (act === "addTask") addTask();
+  else if (act === "look") patch(e.id, { look: randLook() });
+  else if (act === "goFloor") selectOnFloor(e.id);
+  else if (act === "remove") {
+    if (!armSet("emp", e.id)) { renderAll(); return; }
+    removeArm(); var id = e.id;
+    queue(id, function () { return storeDelStaff(id); });
+  }
+});
+$("#detail").addEventListener("keydown", function (ev) { if (ev.key === "Enter" && ev.target.id === "taskIn") addTask(); });
+$("#detail").addEventListener("change", function (ev) {
+  var f = ev.target.getAttribute && ev.target.getAttribute("data-field"), e = emps[selectedId];
+  if (!f || !e || !store.canEdit) return;
+  if (f === "floorId") { changeFloor(e, ev.target.value); patch(e.id, { floorId: e.floorId, deskId: e.deskId }); renderAll(); return; }
+  var v = ev.target.value.trim();
+  if (f === "name") { if (!v) { toast("Name cannot be empty."); ev.target.value = e.name; return; } patch(e.id, { name: v.slice(0, 60) }); }
+  else patch(e.id, { role: v.slice(0, 60) });
+});
+
+/* ---------- Events: Shop ---------- */
+$("#shopToggle").addEventListener("click", function () {
+  setMTab("shop");
+});
+
+$("#hireBasic").addEventListener("click", function () {
+  if (gameState.money < 2000) {
+    toast("Not enough money! Need $2000");
+    return;
+  }
+  var f = curFloor();
+  if (!f) { toast("No floor available"); return; }
+  var used = {}; list().forEach(function (x) { if (x.floorId === f.id && x.deskId) used[x.deskId] = 1; });
+  var ds = f.desks.filter(function (x) { return !used[x.id]; })[0];
+  if (!ds) { toast("No free desks! Buy more desks."); return; }
+  gameState.money -= 2000;
+  saveGameState();
+  var id = uid("e"), now = Date.now();
+  pendingId = id; selectedId = id;
+  queue(id, function () {
+    return storePutStaff(id, { name: "Employee " + (list().length + 1), role: "Staff", status: "working",
+      tasks: [{t: "Get started", done: false}], checkIn: now, floorId: f.id, deskId: ds.id, look: randLook(),
+      log: [{ t: now, text: "Hired and checked in" }], days: {}, order: now });
+  }).then(function () { pendingId = null; renderAll(); updateGameUI(); }, function () { pendingId = null; });
+  renderAll(); updateGameUI();
+  toast("Hired a new employee!");
+});
+
+$("#hireSkilled").addEventListener("click", function () {
+  if (gameState.money < 5000) {
+    toast("Not enough money! Need $5000");
+    return;
+  }
+  var f = curFloor();
+  if (!f) { toast("No floor available"); return; }
+  var used = {}; list().forEach(function (x) { if (x.floorId === f.id && x.deskId) used[x.deskId] = 1; });
+  var ds = f.desks.filter(function (x) { return !used[x.id]; })[0];
+  if (!ds) { toast("No free desks! Buy more desks."); return; }
+  gameState.money -= 5000;
+  gameState.incomePerEmployee += 15;
+  saveGameState();
+  var id = uid("e"), now = Date.now();
+  pendingId = id; selectedId = id;
+  queue(id, function () {
+    return storePutStaff(id, { name: "Skilled " + (list().length + 1), role: "Specialist", status: "working",
+      tasks: [{t: "High priority work", done: false}], checkIn: now, floorId: f.id, deskId: ds.id, look: randLook(),
+      log: [{ t: now, text: "Hired as specialist" }], days: {}, order: now });
+  }).then(function () { pendingId = null; renderAll(); updateGameUI(); }, function () { pendingId = null; });
+  renderAll(); updateGameUI();
+  toast("Hired a skilled employee!");
+});
+
+$("#upgradeIncome").addEventListener("click", function () {
+  if (gameState.money < 3000) {
+    toast("Not enough money! Need $3000");
+    return;
+  }
+  gameState.money -= 3000;
+  gameState.incomePerEmployee += 10;
+  saveGameState();
+  updateGameUI();
+  toast("Income upgraded! +$10 per employee");
+});
+
+$("#buyDesk").addEventListener("click", function () {
+  if (gameState.money < 150) {
+    toast("Not enough money! Need $150");
+    return;
+  }
+  var f = curFloor(); if (!f) return;
+  var spot = findDeskSpot(f);
+  if (!spot) { toast("No free space for a desk."); return; }
+  gameState.money -= 150;
+  saveGameState();
+  var id = uid("d");
+  withFloor(function (fl) { fl.desks.push({ id: id, x: spot.x, z: spot.z }); });
+  updateGameUI();
+  toast("Bought a new desk!");
+});
+
+$("#buyRoom").addEventListener("click", function () {
+  if (gameState.money < 2000) {
+    toast("Not enough money! Need $2000");
+    return;
+  }
+  addRoomNow("meeting");
+  if (curFloor() && curFloor().rooms.length > (curFloor().rooms.length - 1)) {
+    // Check if room was actually added
+    gameState.money -= 2000;
+    updateGameUI();
+    toast("Bought a new room!");
+  }
+});
+
+/* ---------- Reset game ---------- */
+function resetGame() {
+  if (!store.canEdit) { toast("Only the manager can reset the game."); return; }
+  if (!window.confirm("Reset the game?\n\nThis removes every employee, restores the default 4-floor office and puts you back to $5,000 on Day 1. It cannot be undone.")) return;
+  /* money + day back to the start */
+  gameState.money = 5000;
+  gameState.day = 1;
+  gameState.dayElapsed = 0;
+  gameState.incomePerEmployee = 50;
+  gameState.rent = 500;
+  gameState.utilities = 200;
+  gameState.lastTick = Date.now();
+  gameState.lastStatusChange = Date.now();
+  gameState._autoStarted = false;   /* let a fresh game hire its starter staff again */
+  saveGameState();
+  /* wipe staff + restore the default layout (cloud and local modes) */
+  var ids = Object.keys(store._staff || {});
+  var ly = defaultLayout();
+  var jobs = ids.map(function (id) {
+    return Promise.resolve().then(function () { return storeDelStaff(id); });
+  });
+  jobs.push(Promise.resolve().then(function () { return storePutLayout(ly); }));
+  Promise.all(jobs).then(function () {
+    if (store.mode !== "cloud") { store._layout = ly; store._staff = {}; }
+    emitStaff(); emitLayout();
+    selectedId = null; pendingId = null; adding = false; arm = null; editSel = null; editMode = false;
+    layout = ly; floorId = ly.floors[0].id; camByFloor = {};
+    if (sceneOk) { buildWorld(); rebuildSeats(); }
+    renderAll();
+    /* show this last: the fresh game fires its own "welcome" toast a second later */
+    setTimeout(function () { toast("Game reset. Fresh office, $5,000, Day 1."); }, 1400);
+  }, function (err) {
+    toast(errMsg(err));
+    renderAll();
+  });
+}
+$("#resetGame").addEventListener("click", resetGame);
+
+/* ---------- Events: layout editor ---------- */
+$("#layoutSec").addEventListener("click", function (ev) {
+  var b = ev.target.closest("button[data-act]"); if (!b || !store.canEdit) return;
+  var act = b.getAttribute("data-act"), id = b.getAttribute("data-id"), f = curFloor();
+  if (act === "addFloor") addFloorNow();
+  else if (act === "goFloorTab") goFloor(id);
+  else if (act === "renFloor") {
+    var fl = layout.floors.filter(function (x) { return x.id === id; })[0]; if (!fl) return;
+    var name = prompt("Floor name", fl.name); if (name == null) return;
+    name = name.trim().slice(0, 30); if (!name) return;
+    putLayout(function (l) { var t = l.floors.filter(function (x) { return x.id === id; })[0]; if (t) t.name = name; });
+    syncAfterLayoutChange(); renderAll();
+  }
+  else if (act === "delFloor") {
+    if (layout.floors.length <= 1) { toast("The last floor cannot be deleted."); return; }
+    var n = list().filter(function (e) { return e.floorId === id; }).length;
+    if (n) { toast("Move the " + n + " people on this floor first."); return; }
+    if (!armSet("floor", id)) { renderAll(); return; }
+    removeArm();
+    putLayout(function (l) { l.floors = l.floors.filter(function (x) { return x.id !== id; }); });
+    if (floorId === id) floorId = layout.floors[0].id;
+    syncAfterLayoutChange(); buildWorld(); rebuildSeats(); renderAll();
+  }
+  else if (act === "addDesk") addDeskNow();
+  else if (act === "addRoom") addRoomNow(b.getAttribute("data-v"));
+  else if (act === "selDesk") { editSel = { kind: "desk", id: id }; renderAll(); }
+  else if (act === "nudgeDesk") {
+    var dx = +(b.getAttribute("data-dx") || 0), dz = +(b.getAttribute("data-dz") || 0);
+    var d = f.desks.filter(function (x) { return x.id === id; })[0]; if (!d) return;
+    var cand = { x: d.x + dx, z: d.z + dz };
+    if (!deskValid(f, cand, id)) { toast("That would overlap something."); return; }
+    withFloor(function (fl) { var t = fl.desks.filter(function (x) { return x.id === id; })[0]; if (t) { t.x = cand.x; t.z = cand.z; } });
+    editSel = { kind: "desk", id: id };
+  }
+  else if (act === "delDesk") {
+    var occ = list().filter(function (e) { return e.deskId === id && e.floorId === f.id; })[0];
+    if (occ) { toast(occ.name + " sits here. Move them to another desk first."); return; }
+    if (!armSet("desk", id)) { renderAll(); return; }
+    removeArm();
+    withFloor(function (fl) { fl.desks = fl.desks.filter(function (x) { return x.id !== id; }); });
+    if (editSel && editSel.id === id) editSel = null;
+  }
+  else if (act === "delRoom") {
+    var users = list().filter(function (e) { return e.seatKey && e.seatKey.split(":")[0] === id; });
+    if (users.length) { toast(users.map(function (e) { return e.first; }).join(", ") + " is in this room. Change their status first."); return; }
+    if (!armSet("room", id)) { renderAll(); return; }
+    removeArm();
+    withFloor(function (fl) { fl.rooms = fl.rooms.filter(function (x) { return x.id !== id; }); });
+    if (editSel && editSel.id === id) editSel = null;
+  }
+  else if (act === "roomSize") {
+    var p = b.getAttribute("data-p"), v = +b.getAttribute("data-v");
+    var r = f.rooms.filter(function (x) { return x.id === id; })[0]; if (!r) return;
+    var c2 = Object.assign({}, r); c2[p] = clamp(c2[p] + v, 2, 30);
+    if (!roomValid(f, c2, id)) { toast("That size would overlap something."); return; }
+    withFloor(function (fl) { var t = fl.rooms.filter(function (x) { return x.id === id; })[0]; if (t) t[p] = c2[p]; });
+    editSel = { kind: "room", id: id };
+  }
+});
+$("#layoutSec").addEventListener("change", function (ev) {
+  var act = ev.target.getAttribute && ev.target.getAttribute("data-act"), id = ev.target.getAttribute && ev.target.getAttribute("data-id");
+  if (!act || !store.canEdit) return;
+  var f = curFloor(); if (!f) return;
+  if (act === "roomType") {
+    var t = ev.target.value; if (!ROOM_TYPES[t]) return;
+    withFloor(function (fl) { var r = fl.rooms.filter(function (x) { return x.id === id; })[0]; if (r) { r.type = t; if (Object.keys(ROOM_TYPES).indexOf(r.name) >= 0 || !r.name) r.name = ROOM_TYPES[t]; } });
+    releaseSeatsOnFloor(f); editSel = { kind: "room", id: id };
+  } else if (act === "roomName") {
+    var v = ev.target.value.trim().slice(0, 30) || "Room";
+    withFloor(function (fl) { var r = fl.rooms.filter(function (x) { return x.id === id; })[0]; if (r) r.name = v; });
+  }
+});
+function releaseSeatsOnFloor(f) {
+  list().forEach(function (e) { if (e.floorId === f.id && (e.status === "meeting" || e.status === "break")) { releaseSeat(e); if (e.status === "meeting") takeSeat("meeting", e); else takeSeat("pantry", e); } });
+}
+
+/* ---------- Events: global keys ---------- */
+document.addEventListener("keydown", function (ev) {
+  if (ev.key !== "Escape") return;
+  var a = document.activeElement;
+  if (a && (a.tagName === "INPUT" || a.tagName === "SELECT" || a.tagName === "TEXTAREA")) { a.blur(); return; }
+  if (adding) { adding = false; renderAll(); return; }
+  clearSel();
+});
+
+/* ---------- Events: edit toggle ---------- */
+$("#editToggle").addEventListener("click", function () {
+  editMode = !editMode;
+  if (!editMode) editSel = null;
+  if (sceneOk) { refreshEditTargets(); }
+  renderAll();
+});
+/* ---------- Sample team ---------- */
+function exportCsv() {
+  var rows = [];
+  list().forEach(function (e) {
+    var days = Object.keys(e.days || {}).sort(), done = e.tasks.filter(function (t) { return t.done; }).length;
+    var base = [e.name, e.role || "", STATUS[e.status].label, (floorOf(e) || {}).name || "", deskLabel(e),
+      e.checkIn ? new Date(e.checkIn).toISOString() : "", done + "/" + e.tasks.length];
+    if (!days.length) { rows.push(base.concat(["", "", ""])); return; }
+    days.forEach(function (k) {
+      var r = e.days[k] || {};
+      rows.push(base.concat([k, r.in ? new Date(r.in).toISOString() : "", r.out ? new Date(r.out).toISOString() : ""]));
+    });
+  });
+  var head = ["Name", "Role", "Status", "Floor", "Desk", "Checked in", "Tasks", "Day", "In", "Out"];
+  var csv = [head].concat(rows).map(function (r) {
+    return r.map(function (c) { c = String(c == null ? "" : c); return /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(",");
+  }).join("\r\n");
+  try {
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = "office-team-" + new Date().toISOString().slice(0, 10) + ".csv";
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    toast("CSV downloaded.");
+  } catch (x) { toast("Could not download the CSV here."); }
+}
+function loadSample() {
+  if (!store.canEdit || list().length) return;
+  var f = curFloor(); if (!f) return;
+  var defs = [
+    ["Sokha Chan", "Accountant", "working", "Reconcile invoices"],
+    ["Dara Lin", "Designer", "working", "Dashboard mockups"],
+    ["Maly Sok", "Developer", "meeting", ""],
+    ["Rith Chan", "Support", "working", "Close ticket #482"],
+    ["Bopha Nou", "Analyst", "break", ""],
+    ["Vandy Phat", "Sales", "away", ""],
+    ["Sreypov Ke", "HR", "working", "Onboarding plan"],
+    ["Chansok Hoe", "Developer", "absent", ""]
+  ];
+  var used = {}, day = new Date().toISOString().slice(0, 10);
+  defs.forEach(function (d, i) {
+    var ds = f.desks.filter(function (x) { return !used[x.id]; })[0]; if (!ds) return;
+    used[ds.id] = 1;
+    var id = uid("e"), now = Date.now() - i * 60000;
+    var days = {}; if (d[2] !== "absent") days[day] = { in: now - 3600000 * (2 + i % 4), out: null };
+    queue(id, function () {
+      return storePutStaff(id, { name: d[0], role: d[1], status: d[2],
+        tasks: d[3] ? [{ t: d[3], done: d[2] === "working" && i % 2 === 0 }] : [],
+        checkIn: d[2] === "absent" ? null : now - 3600000 * (2 + i % 4),
+        floorId: f.id, deskId: ds.id, look: randLook(),
+        log: [{ t: now, text: d[2] === "absent" ? STATUS.absent.verb : "Checked in" }],
+        days: days, order: now });
+    });
+  });
+  toast("Sample team added.");
+}
+
+/* ---------- Boot ---------- */
+loadGameState();
+function clock() { $("#clock").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }); }
+clock(); setInterval(clock, 1000);
+setInterval(gameTick, 100);
+updateGameUI();
+
+function ensureTag(id) {
+  if (tags[id] || !sceneOk) return;
+  var el = document.createElement("div"); el.className = "tag"; el.innerHTML = "<i></i><span></span>";
+  labelsEl.appendChild(el); tags[id] = el;
+}
+function syncAvatars() {
+  if (!sceneOk) return;
+  list().forEach(function (e) { ensureTag(e.id); if (!e.group) makeAvatar(e); });
+}
+function onLayoutData(ly) {
+  var prevFloor = floorId;
+  layout = ly;
+  if (!layout) {
+    if (store.canEdit) {
+      var d = defaultLayout(); layout = d;
+      queue("layout", function () { return storePutLayout(d); });
+    } else { renderAll(); return; }
+  }
+  if (!layout.floors.some(function (f) { return f.id === prevFloor; })) floorId = layout.floors[0].id;
+  /* re-bind employees to this layout (desks may have been added/removed) */
+  list().forEach(function (e) {
+    var before = JSON.stringify([e.floorId, e.deskId]);
+    copyData(e, { name: e.name, role: e.role, tasks: e.tasks, log: e.log, checkIn: e.checkIn, order: e.order, look: e.look, days: e.days,
+      floorId: e.floorId, deskId: e.deskId });
+    if (JSON.stringify([e.floorId, e.deskId]) !== before && store.canEdit) patch(e.id, { floorId: e.floorId, deskId: e.deskId });
+  });
+  rebuildSeats();
+  if (sceneOk) buildWorld();
+  syncAvatars();
+  loaded = true; renderAll();
+}
+function onStaffData(map) {
+  var seen = {};
+  Object.keys(map).forEach(function (id) { seen[id] = 1; applyDoc(id, map[id] || {}); });
+  Object.keys(emps).forEach(function (id) { if (!seen[id] && id !== pendingId) removeEmp(id); });
+  /* keep a valid selection, but never auto-select on its own */
+  if (selectedId && !emps[selectedId] && selectedId !== pendingId) selectedId = null;
+  syncAvatars();
+  loaded = true; renderAll();
+  // Auto-start with employees if empty (for better game experience)
+  if (store.canEdit && list().length === 0 && !gameState._autoStarted) {
+    gameState._autoStarted = true;
+    setTimeout(function() {
+      if (list().length === 0) {
+        toast("Welcome to Office Tycoon! Starting with 2 employees...");
+        var f = curFloor(); if (!f) return;
+        var used = {};
+        var names = ["Alex Johnson", "Sarah Chen"];
+        var roles = ["Manager", "Assistant"];
+        names.forEach(function(name, idx) {
+          var ds = f.desks.filter(function (x) { return !used[x.id]; })[0];
+          if (!ds) return;
+          used[ds.id] = 1;
+          var id = uid("e"), now = Date.now();
+          queue(id, function () {
+            return storePutStaff(id, { name: name, role: roles[idx], status: "working",
+              tasks: [{t: "Getting settled", done: false}], checkIn: now, floorId: f.id, deskId: ds.id, look: randLook(),
+              log: [{ t: now, text: "Started first day" }], days: {}, order: now });
+          });
+        });
+        updateGameUI();
+      }
+    }, 1000);
+  }
+}
+
+var ok = !!T && !!window.WebGLRenderingContext;
+if (ok) { try { initScene(); } catch (err) { ok = false; sceneOk = false; } }
+if (!ok) stage.insertAdjacentHTML("beforeend", '<div class="fail">The 3D view could not load. The panel still shows live status.</div>');
+else {
+  new ResizeObserver(resize).observe(stage);
+  requestAnimationFrame(function (t) { last = t; frame(t); });
+}
+renderAll();
+
+storeInit().then(function () {
+  if (store.mode === null) { dbProblem = "Saved data is not available in this view."; renderAll(); return; }
+  storeWatchLayout(onLayoutData);
+  storeWatchStaff(onStaffData);
+}).catch(function () {
+  dbProblem = "Could not reach saved data. Reload the page."; renderAll();
+});
+})();
+</script>
+</body></html>
